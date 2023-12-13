@@ -87,7 +87,7 @@ def convert_single_tar(tar_path,
     
     #Create working directory with time stamp to store BIDS output
     date_time = datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S")
-    working_dir = working_dir_base_path + '_' + date_time
+    working_dir = os.path.join(working_dir_base_path, 'work_' + date_time)
     tmp_bids_dir = os.path.join(working_dir, 'tmp_bids', 'final')
     if os.path.exists(working_dir):
         raise ValueError('Error: working dir at {} should not already exist when running this script'.format(working_dir))
