@@ -52,6 +52,8 @@ def unpack_qalas_from_targz(tar_path, output_path):
                         temp_dict = {}
                         temp_dict['SeriesInstanceUID'] = str(tmp_dcm[0x0020, 0x000e]._value)
                         temp_dict['StudyInstanceUID'] = str(tmp_dcm[0x0020, 0x000d]._value)
+                        temp_dict['PatientName'] = str(tmp_dcm[0x0010, 0x0010]._value)
+                        temp_dict['PatientID'] = str(tmp_dcm[0x0010, 0x0020]._value)
                         supplemental_infos.append(temp_dict.copy())
                         break
     except:
