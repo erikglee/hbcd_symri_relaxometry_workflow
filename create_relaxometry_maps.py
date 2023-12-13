@@ -630,9 +630,9 @@ def process_new_subjects(batch_size=100,
     #Grab the most recent tracking log
     tracking_logs = glob.glob(os.path.join(base_directory,'tracking_logs/tracking_log*.csv'))
     if len(tracking_logs) == 0:
-        template_tracking_log =  os.path.join(Path(inspect.getfile(main)).absolute().parent.resolve(), 'tracking_log_empty.csv')
-        shutil.copyfile(template_tracking_log, os.path.join(tracking_log_dir, 'tracking_log_empty.csv'))
-        most_recent_tracking_log = os.path.join(tracking_log_dir, 'tracking_log_empty.csv')
+        template_tracking_log =  os.path.join(Path(inspect.getfile(main)).absolute().parent.resolve(), 'empty_tracking_log.csv')
+        shutil.copyfile(template_tracking_log, os.path.join(tracking_log_dir, 'empty_tracking_log.csv'))
+        most_recent_tracking_log = os.path.join(tracking_log_dir, 'empty_tracking_log.csv')
     else:
         tracking_logs.sort()
         most_recent_tracking_log = tracking_logs[-1]
