@@ -359,6 +359,14 @@ def push_to_s3(base_bids_dir, subject_label, bucket_name = None,
     
     '''
 
+    sys.stdout.write(base_bids_dir)
+    sys.stdout.write(subject_label)
+    sys.stdout.write(bucket_name)
+    sys.stdout.write(prefix)
+    sys.stdout.write(different_config_path)
+    sys.stdout.flush()
+    
+
     #Grab config path
     if different_config_path == False:
         config_path = ''
@@ -390,7 +398,7 @@ def push_to_s3(base_bids_dir, subject_label, bucket_name = None,
     )
     
     try:
-        sys.stderr.write('Uploading data for sub-{}\n'.format(subject_label))
+        sys.stdout.write('Uploading data for sub-{}\n'.format(subject_label))
         sys.stdout.flush()
         os.chdir(base_bids_dir)
         files = glob.glob('sub*/ses*/anat/*')
