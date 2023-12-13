@@ -683,7 +683,7 @@ def process_new_subjects(batch_size=100,
         #Upload if conversion was succesful
         elif output_info[i]['converted_series_name'] != '-1':
             temp = push_to_s3(output_info[i]['bids_path'], output_info[i]['subject_label'], bucket_name = output_bucket_name,
-                                prefix = os.path.join('derivatives', output_info[i]['session_label'], 'symri'),
+                                prefix = os.path.join('/derivatives', output_info[i]['session_label'], 'symri'),
                                 different_config_path=output_bucket_config)
             upload_status.append(temp)
             
