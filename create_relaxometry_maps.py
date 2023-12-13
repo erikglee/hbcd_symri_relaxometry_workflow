@@ -396,6 +396,9 @@ def push_to_s3(base_bids_dir, subject_label, bucket_name = None,
         aws_secret_access_key=secret_key,
         endpoint_url =host_base
     )
+
+    sys.stdout.write('Client Info: {}\n'.format(client))
+    sys.stdout.flush()
     
     try:
         sys.stdout.write('Uploading data for sub-{}\n'.format(subject_label))
