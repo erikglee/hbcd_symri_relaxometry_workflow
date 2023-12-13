@@ -361,12 +361,12 @@ def push_to_s3(base_bids_dir, subject_label, bucket_name = None,
     
     '''
 
-    sys.stdout.write(base_bids_dir + '\n')
-    sys.stdout.write(subject_label + '\n')
-    sys.stdout.write(bucket_name + '\n')
-    sys.stdout.write(prefix + '\n')
-    sys.stdout.write(different_config_path + '\n')
-    sys.stdout.flush()
+    #sys.stdout.write(base_bids_dir + '\n')
+    #sys.stdout.write(subject_label + '\n')
+    #sys.stdout.write(bucket_name + '\n')
+    #sys.stdout.write(prefix + '\n')
+    #sys.stdout.write(different_config_path + '\n')
+    #sys.stdout.flush()
     
 
     #Grab config path
@@ -399,8 +399,8 @@ def push_to_s3(base_bids_dir, subject_label, bucket_name = None,
         endpoint_url =host_base
     )
 
-    sys.stdout.write('Client Info: {}\n'.format(client))
-    sys.stdout.flush()
+    #sys.stdout.write('Client Info: {}\n'.format(client))
+    #sys.stdout.flush()
     
     try:
         sys.stdout.write('Uploading data for sub-{}\n'.format(subject_label))
@@ -635,7 +635,6 @@ def process_new_subjects(batch_size=100,
     #1. Find which files have already been processed
     #Grab the most recent tracking log
     tracking_logs = glob.glob(os.path.join(base_directory,'tracking_logs/tracking_log*.csv'))
-    sys.stdout.write('tracking log query: ' + os.path.join(base_directory,'tracking_logs/tracking_log*.csv') + '\n')
     if len(tracking_logs) == 0:
         template_tracking_log =  os.path.join(Path(inspect.getfile(main)).absolute().parent.resolve(), 'empty_tracking_log.csv')
         shutil.copyfile(template_tracking_log, os.path.join(tracking_log_dir, 'empty_tracking_log.csv'))
