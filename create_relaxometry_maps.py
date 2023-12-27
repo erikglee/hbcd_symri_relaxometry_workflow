@@ -208,7 +208,7 @@ def convert_single_tar(tar_path,
 
 def grab_from_s3(processed_tgz_files, batch_size = None, bucket_name = None, extension = 'tar.gz',
                     output_folder = None, check_date = True,
-                    different_config_path = False):
+                    different_config_path = False, dry_run = False):
     '''Function to grab dicoms from s3 bucket for symri
     
     This function takes as input a list of tgz files that have
@@ -305,11 +305,17 @@ def grab_from_s3(processed_tgz_files, batch_size = None, bucket_name = None, ext
     
     if batch_size is None:
         batch_size = float('inf')
+
+    #Make new versions of the files with only pscid/dccid/session label
+    processed_tgz_files_shortened = []
+    for temp_file in processed_tgz_files:
+        processed_tgz_files_shortened.append('_'.join(temp_file.split('_')[0:3]))
     
     
     keys = []
     counter = 0
     extension_offset = -1*len(extension)
+    skipped_because_of_similar_file = []
     for temp_object in bucket_contents:
 
         #Only consider objects that are more than one day old
@@ -319,8 +325,12 @@ def grab_from_s3(processed_tgz_files, batch_size = None, bucket_name = None, ext
             key_name = temp_object['Key']
             if key_name[extension_offset:] == extension:
                 if key_name not in processed_tgz_files:
-                    keys.append(key_name)
-                    counter += 1
+                    if '_'.join(key_name.split('_')[0:3]) in processed_tgz_files_shortened:
+                        sys.stdout.write('Skipping file: {} because another archive with same subject/session has already been processed.\n'.format(key_name))
+                        skipped_because_of_similar_file.append(key_name)
+                    else:
+                        keys.append(key_name)
+                        counter += 1
             if counter == batch_size:
                 break
 
@@ -331,12 +341,13 @@ def grab_from_s3(processed_tgz_files, batch_size = None, bucket_name = None, ext
         temp_local_path = os.path.join(output_folder, temp_key)
         if not os.path.exists(os.path.dirname(temp_local_path)):
                 os.makedirs(os.path.dirname(temp_local_path))
-        client.download_file(bucket_name, temp_key, temp_local_path)
+        if dry_run == False:
+            client.download_file(bucket_name, temp_key, temp_local_path)
         sys.stdout.write('Downloading file: {} from bucket {}\n'.format(temp_key, bucket_name))
         sys.stdout.flush()
         targz_paths.append(temp_local_path)
         
-    return targz_paths
+    return targz_paths, skipped_because_of_similar_file
 
 def push_to_s3(base_bids_dir, subject_label, bucket_name = None,
                     prefix = None, different_config_path = False):
@@ -645,6 +656,7 @@ def process_new_subjects(batch_size=100,
 
     tracking_log = pd.read_csv(most_recent_tracking_log)
     processed_tgz_files = tracking_log['tar_name'].values
+    processed_tgz_files_shortened = []
 
     ############################################################################################################
     ############################################################################################################
@@ -653,12 +665,36 @@ def process_new_subjects(batch_size=100,
 
     date_time = datetime.now().strftime("_date%Y_%m_%d_time%H_%M_%S")
     s3_cache_dir = os.path.join(base_directory, 's3_cache', 's3_cache{}'.format(date_time))
-    targz_paths = grab_from_s3(processed_tgz_files, batch_size = batch_size, bucket_name = input_bucket_name, extension = 'gz',
+    targz_paths, skipped_because_of_similar_archive = grab_from_s3(processed_tgz_files, batch_size = None, bucket_name = input_bucket_name, extension = 'gz',
                         output_folder = s3_cache_dir, check_date = check_date, different_config_path = input_bucket_config)
+    if len(skipped_because_of_similar_archive) > 0:
+        sys.stdout.write('The following files were skipped because another archive with the same subject/session has already been processed:\n')
+        with open(os.path.join(tracking_log_dir, 'skipped_because_of_similar_archive_{}.txt'.format(date_time)), 'w') as f:
+            for temp_file in skipped_because_of_similar_archive:
+                f.write(temp_file + '\n')
+                sys.stdout.write(temp_file + '\n')
+        sys.stdout.flush()
     if len(targz_paths) == 0:
         sys.stdout.write('No new tar files found for processing!\n\n')
         sys.stdout.flush()
         return
+
+    ############################################################################################################
+    ############################################################################################################
+    #2.5. Out of the targz files that haven't been processed, group them together by subject/session.
+
+    #Find and group subject/session labels for each tar file. And do the
+    #same for the (hypothetical) json QC files that may/may not exist.
+    archive_dictionary = {}
+    qc_dictionary = {}
+    for temp_path in targz_paths:
+        high_level_name = '_'.join(temp_path.split('/')[-1].split('_')[0:3])
+        if high_level_name not in archive_dictionary.keys():
+            archive_dictionary[high_level_name] = [temp_path]
+            qc_dictionary[high_level_name] = [temp_path.split('.')[0] + '_mripcqc_info.json']
+        else:
+            archive_dictionary[high_level_name].append(temp_path)
+
 
     ############################################################################################################
     ############################################################################################################
