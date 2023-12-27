@@ -361,7 +361,7 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     dcm2bids_executable_path = 'dcm2bids'
 
     #Run symri container
-    dcm_maps_path = os.path.join(working_dir_base_path, qalas_folders[0] + '_qalas_derived_dcm_maps')
+    dcm_maps_path = os.path.join(working_dir_base_path, 'dcm_maps_dir')
     os.makedirs(dcm_maps_path)
     symri_container_command = qalas_base_command.format(global_path=global_path, layout_path=layout_path, container_path=container_path, qalas_folder=qalas_folders[0], dcm_maps_path=dcm_maps_path, log_path=initial_log_path)
     os.system(symri_container_command)
