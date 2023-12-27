@@ -312,7 +312,7 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     output_info = {'tar_name' : qalas_info_dict['archive_to_download']}
     
     #Create working directory with time stamp to store BIDS output
-    tmp_bids_dir = os.path.join(working_dir_base_path, 'tmp_bids', 'final')
+    tmp_bids_dir = os.path.join(working_dir_base_path, 'tmp_bids')
     if os.path.exists(tmp_bids_dir) == False:
         sys.stdout.write('Making working directory at: {}\n'.format(tmp_bids_dir))
         sys.stdout.flush()
@@ -372,7 +372,6 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     output_info['num_niftis_generated'] = 0
     if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 6:
 
-        tmp_bids_dir = os.path.join(working_dir_base_path, 'tmp_bids')
         dcm2bids_command = dcm2bids_base_command.format(dcm2bids_executable_path=dcm2bids_executable_path, dcm_maps_path=dcm_maps_path, dcm2bids_config_path=dcm2bids_config_path, tmp_bids_dir=tmp_bids_dir, subject_label=subject_label, session_label=session_label)
         os.system(dcm2bids_command)
         shutil.copyfile(initial_log_path, os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat', 'sub-{}_ses-{}_acq-QALAS_desc-SymriContainer.log'.format(output_info['subject_label'], output_info['session_label'])))
@@ -634,9 +633,11 @@ def main():
                                             dcm2bids_config)
             
             #Send the results to s3
-            push_to_s3(output_info['bids_path'], output_info['subject_label'], bucket_name = args.custom_loris_bucket_name,
+            status = push_to_s3(output_info['bids_path'], output_info['subject_label'], bucket_name = args.custom_loris_bucket_name,
                                     prefix = os.path.join('derivatives', 'ses-' + output_info['session_label'], 'symri'),
-                                    different_config_path=args.loris_config_path)            
+                                    different_config_path=args.loris_config_path)     
+            if status == False:
+                raise ValueError('Error: Pushing data to S3 was unsuccessful.')
             
             #After BIDS conversion + uploading to S3, update the
             #tracking dictionary with data for this subject.
