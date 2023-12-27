@@ -650,6 +650,10 @@ def main():
             best_qalas_info = {}
             best_qalas_info['jsons_tested'] = jsons_dict[temp_session]
             tracking_log_data[temp_session] = best_qalas_info
+
+        #Clean up the session working directory
+        if args.clean_up == True:
+            shutil.rmtree(session_base_dir)
             
     #Save the tracking log
     date_time = datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S")
