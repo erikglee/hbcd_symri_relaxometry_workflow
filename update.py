@@ -370,6 +370,9 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         
     #Run dcm2bids conversion
     output_info['num_niftis_generated'] = 0
+    print(dcm_maps_path)
+    sys.stdout.write('dcm_maps_path: {}\n'.format(dcm_maps_path))
+    sys.stdout.flush()
     if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 6:
 
         dcm2bids_command = dcm2bids_base_command.format(dcm2bids_executable_path=dcm2bids_executable_path, dcm_maps_path=dcm_maps_path, dcm2bids_config_path=dcm2bids_config_path, tmp_bids_dir=tmp_bids_dir, subject_label=subject_label, session_label=session_label)
