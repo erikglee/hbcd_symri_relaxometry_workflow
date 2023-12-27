@@ -491,7 +491,7 @@ def main():
     parser.add_argument('--custom_processing_batch_size', help="The number of dicom archives that you want to attempt to process.", type=int, default=20)
     parser.add_argument('--custom_dicom_bucket_name', help="The name of the bucket to grab dicoms from.", type=str, default='midb-hbcd-ucsd-main-pr-dicoms')
     parser.add_argument('--custom_loris_bucket_name', help="The name of the bucket where results will be stored.", type=str, default='midb-hbcd-main-pr')
-    parser.add_argument('--clean_up', help="If used, local copies of dicom/niftis generated during processing will be removed.", action='store_true')
+    parser.add_argument('--keep_work_dirs', help="If used, local copies of dicom/niftis generated will be saved. Deletion may be required for subsequent processing in specific cases.", action='store_true')
     parser.add_argument('--check_date', help="If used, data will only be processed if it is at least ~1 day old.", action='store_true')
     args = parser.parse_args()
 
@@ -653,7 +653,7 @@ def main():
             tracking_log_data[temp_session] = best_qalas_info
 
         #Clean up the session working directory
-        if args.clean_up == True:
+        if args.keep_work_dirs == False:
             shutil.rmtree(session_base_dir)
             
     #Save the tracking log
