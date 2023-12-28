@@ -365,11 +365,10 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     symri_container_command = qalas_base_command.format(global_path=global_path, layout_path=layout_path, container_path=container_path, qalas_folder=qalas_folders[0], dcm_maps_path=dcm_maps_path, log_path=initial_log_path)
     os.system(symri_container_command)
     sys.stdout.write('   SyMRI Command:\n')
-    sys.stdout.write('      ' + symri_container_command + '\n\n')
+    sys.stdout.write('      ' + symri_container_command + '\n')
         
     #Run dcm2bids conversion
     output_info['num_niftis_generated'] = 0
-    print(dcm_maps_path)
     sys.stdout.write('   dcm_maps_path: {}\n'.format(dcm_maps_path))
     sys.stdout.flush()
     if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 6:
@@ -470,11 +469,11 @@ def push_to_s3(base_bids_dir, subject_label, bucket_name = None,
         sys.stdout.flush()
         os.chdir(base_bids_dir)
         files = glob.glob('sub*/ses*/anat/*')
-        sys.stdout.write('Files to upload: {}\n'.format(files))
+        sys.stdout.write('   Files to upload: {}\n'.format(files))
         for temp_file in files:
             response = client.upload_file(temp_file, bucket_name, os.path.join(prefix, temp_file))
     except:
-        sys.stdout.write('Either part or all of uploading Failed for sub-{}, the corresponding session will not be save to the log file so that processing will run again later.\n'.format(subject_label))
+        sys.stdout.write('   Either part or all of uploading Failed for sub-{}, the corresponding session will not be save to the log file so that processing will run again later.\n'.format(subject_label))
         sys.stdout.flush()
         return False
 
