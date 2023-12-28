@@ -610,10 +610,12 @@ def main():
             reproc_log_data = json.load(f)
         to_reprocess = reproc_log_data['to_reprocess']
         consider_reprocessing = reproc_log_data['consider_reprocessing']
+        data_in_qc_but_not_archive = reproc_log_data['data_in_qc_but_not_archive']
     else:
         reproc_log_data = {}
         to_reprocess = []
         consider_reprocessing = []
+        data_in_qc_but_not_archive = []
 
     reprocess_attempted = []
             
@@ -720,7 +722,13 @@ def main():
                 os.makedirs(unpack_dir)
             tar_path = os.path.join(dicom_base_dir, archives_with_qalas_to_process[temp_session]['archive_to_download'])
             qalas_folders, supplemental_infos = unpack_qalas_from_targz(tar_path, unpack_dir, SeriesInstanceUID = archives_with_qalas_to_process[temp_session]['SeriesInstanceUID'], StudyInstanceUID = archives_with_qalas_to_process[temp_session]['StudyInstanceUID'])    
-            
+            if len(qalas_folders) == 0:
+                sys.stdout.write('   Found QALAS in QC file but unable to find QALAS scan within archive. Skipping subject archive and adding them to reprocessing log.\n')
+                sys.stdout.flush()
+                data_in_qc_but_not_archive.append(temp_session)
+                continue
+
+
             sys.stdout.write('   QALAS files found within: {}\n'.format(qalas_folders))
             sys.stdout.flush()
 
@@ -792,6 +800,7 @@ def main():
     reproc_log_data['to_reprocess'] = [i for i in to_reprocess if i not in reprocess_attempted]
     consider_reprocessing = list(set(consider_reprocessing))
     reproc_log_data['consider_reprocessing'] = consider_reprocessing
+    reproc_log_data['data_in_qc_but_not_archive'] = data_in_qc_but_not_archive
 
     with open(reproc_log_path, 'w') as f:
         f.write(json.dumps(reproc_log_data, indent = 5))
