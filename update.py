@@ -715,7 +715,7 @@ def main():
         #Clean up the session working directory
         if args.keep_work_dirs == False:
             shutil.rmtree(session_base_dir)
-            sys.stdout.write('   Removing working directory at: {}\n'.format(session_base_dir))
+            sys.stdout.write('   Removing working directory at: {}\n\n\n'.format(session_base_dir))
             sys.stdout.flush()
             
     #Save the tracking log
