@@ -540,12 +540,28 @@ def main():
     else:
         with open(log_files[-1], 'r') as f:
             tracking_log_data = json.load(f)
+
+
+    #Also look around for a log file in the base dir named reproc_log.json
+    #that contains both a list of subjects that could need to be reprocessed
+    #based on new data and subjects that the user has deemed ready for reprocessing.
+    reproc_log_path = os.path.join(args.base_directory_for_proc, 'reproc_log.json')
+    if os.path.exists(reproc_log_path) == True:
+        with open(reproc_log_path, 'r') as f:
+            reproc_log_data = json.load(f)
+        to_reprocess = reproc_log_data['to_reprocess']
+        consider_reprocessing = reproc_log_data['consider_reprocessing']
+    else:
+        reproc_log_data = {}
+        to_reprocess = []
+        consider_reprocessing = []
+
+    reprocess_attempted = []
             
     #Second, figure out which jsons (1) represent sessions that need to be
     #processed, (2) sessions that may need to be modified, and (3) sessions
     #that are already set.
     sessions_to_evaluate = {}
-    potentially_need_reprocessing = []
     batch_limit = args.custom_processing_batch_size
     num_to_process = 0
     for temp_session in jsons_dict.keys():
@@ -560,7 +576,12 @@ def main():
                 #No need to do anything to update subject
                 continue
             else:
-                potentially_need_reprocessing.append(temp_session)
+                if temp_session in to_reprocess:
+                    sessions_to_evaluate[temp_session] = jsons_dict[temp_session]
+                    reprocess_attempted.append(temp_session)
+                    num_to_process += 1
+                else:
+                    consider_reprocessing.append(temp_session)
         else:
             if num_to_process < batch_limit:
                 
@@ -587,6 +608,7 @@ def main():
         best_qalas_info = None
         best_qalas_qu_score = np.inf
         best_qalas_aqc_score = np.inf
+        qc_or_other_missing = False
         for temp_json in downloaded_jsons:
             with open(temp_json, 'r') as f:
                 content = json.load(f)[0]
@@ -595,7 +617,8 @@ def main():
             for temp_scan in content:
                 if temp_scan['SeriesType'] == 'qMRI':
                     if (type(temp_scan['QU_motion']) == type(None)) or (type(temp_scan['aqc_motion']) == type(None)) or (type(temp_scan['Completed']) == type(None)):
-                        print('Either QU_motion, aqc_motion, or Completed status is missing for one scan within {}'.format(temp_json))
+                        print('Processing will be attempted later: Either QU_motion, aqc_motion, or Completed status is missing for one scan within {}'.format(temp_json))
+                        qc_or_other_missing = True
                         continue
                     if temp_scan['Completed'] == 1:
                         if temp_scan['QU_motion'] < best_qalas_qu_score:
@@ -645,15 +668,23 @@ def main():
             #After BIDS conversion + uploading to S3, update the
             #tracking dictionary with data for this subject.
             tracking_log_data[temp_session] = best_qalas_info
+
+            #If this session was in the reprocess list, remove it
+            if temp_session in reprocess_attempted:
+                reprocess_attempted.remove(temp_session)
+                consider_reprocessing.remove(temp_session)
             
         
         else:
             
             #Add the jsons for this session to the json log so they
             #can be ignored in further processing.
-            best_qalas_info = {}
-            best_qalas_info['jsons_tested'] = jsons_dict[temp_session]
-            tracking_log_data[temp_session] = best_qalas_info
+            if qc_or_other_missing == False:
+                best_qalas_info = {}
+                best_qalas_info['jsons_tested'] = jsons_dict[temp_session]
+                tracking_log_data[temp_session] = best_qalas_info
+            else:
+                print('Processing of archive has been skipped due to missing QC information. Subject info will not be added to log.')
 
         #Clean up the session working directory
         if args.keep_work_dirs == False:
@@ -664,6 +695,14 @@ def main():
     new_path = os.path.join(logs_dir, 'tracking_log_{}.json'.format(date_time))
     with open(new_path, 'w') as f:
         f.write(json.dumps(tracking_log_data, indent = 5))
+
+
+    #Save the reprocess log
+    reproc_log_data['to_reprocess'] = [i for i in to_reprocess if i not in reprocess_attempted]
+    reproc_log_data['consider_reprocessing'] = consider_reprocessing
+
+    with open(reproc_log_path, 'w') as f:
+        f.write(json.dumps(reproc_log_data, indent = 5))
 
     return
 
