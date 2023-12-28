@@ -707,6 +707,8 @@ def main():
                 best_qalas_info = {}
                 best_qalas_info['jsons_tested'] = jsons_dict[temp_session]
                 tracking_log_data[temp_session] = best_qalas_info
+                sys.stdout.write('   No signs of QALAS scan that should be used for processing. Skipping subject archive and adding them to log.\n')
+                sys.stdout.flush()
             else:
                 sys.stdout.write('   Processing of archive has been skipped due to missing QC information. Subject info will not be added to log.\n')
                 sys.stdout.flush()
