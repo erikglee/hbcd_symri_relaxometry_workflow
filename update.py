@@ -728,6 +728,7 @@ def main():
 
     #Save the reprocess log
     reproc_log_data['to_reprocess'] = [i for i in to_reprocess if i not in reprocess_attempted]
+    consider_reprocessing = list(set(consider_reprocessing))
     reproc_log_data['consider_reprocessing'] = consider_reprocessing
 
     with open(reproc_log_path, 'w') as f:
