@@ -240,7 +240,6 @@ def unpack_qalas_from_targz(tar_path, output_path, SeriesInstanceUID = None, Stu
 
                     #If the user specified a series instance uid, only
                     #use if this matches what is observed in the dicom
-                    print('A')
                     if type(SeriesInstanceUID) != type(None):
                         if str(tmp_dcm[0x0020, 0x000e]._value) != SeriesInstanceUID:
                             continue
@@ -365,13 +364,13 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     os.makedirs(dcm_maps_path)
     symri_container_command = qalas_base_command.format(global_path=global_path, layout_path=layout_path, container_path=container_path, qalas_folder=qalas_folders[0], dcm_maps_path=dcm_maps_path, log_path=initial_log_path)
     os.system(symri_container_command)
-    sys.stdout.write('SyMRI Command:\n')
-    sys.stdout.write(symri_container_command + '\n\n')
+    sys.stdout.write('   SyMRI Command:\n')
+    sys.stdout.write('      ' + symri_container_command + '\n\n')
         
     #Run dcm2bids conversion
     output_info['num_niftis_generated'] = 0
     print(dcm_maps_path)
-    sys.stdout.write('dcm_maps_path: {}\n'.format(dcm_maps_path))
+    sys.stdout.write('   dcm_maps_path: {}\n'.format(dcm_maps_path))
     sys.stdout.flush()
     if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 6:
 
@@ -387,8 +386,8 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         for temp_json_file in json_files:
             update_bids_json(temp_json_file, supplemental_info=supplemental_infos[0])
 
-        sys.stdout.write('dcm2bids Command:\n')
-        sys.stdout.write(dcm2bids_command + '\n\n')
+        sys.stdout.write('   dcm2bids Command:\n')
+        sys.stdout.write('      ' + dcm2bids_command + '\n\n')
         sys.stdout.flush()
 
 
@@ -396,7 +395,7 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     else:
         output_info['num_niftis_generated'] = 0
         output_info['symri_conversion_error'] = 1
-        sys.stdout.write('SyMRI Container was unable to convert QALAS dicoms to Synthetic Maps\n')
+        sys.stdout.write('   SyMRI Container was unable to convert QALAS dicoms to Synthetic Maps\n')
         sys.stdout.flush()
     
     return output_info
@@ -590,12 +589,18 @@ def main():
                 
         if num_to_process == batch_limit:
             break
+
+    sys.stdout.write('Processing scripts found {} session/subject combonations as candidates for new and/or updated processing.\n'.format(num_to_process))
+    sys.stdout.flush()
                 
     #Third iterate through all sessions that need to be processed. #First,
     #download the QC JSONS for the sessions. 
     archives_with_qalas_to_process = {}
     working_base_dir = os.path.join(args.base_directory_for_proc, 'working_dir')
     for temp_session in sessions_to_evaluate.keys():
+
+        sys.stdout.write('Attempting processing for: {}\n'.format(temp_session))
+        sys.stdout.flush()
         
         session_base_dir = os.path.join(working_base_dir, temp_session)
         dicom_base_dir = os.path.join(session_base_dir, 'dicoms')
@@ -604,6 +609,9 @@ def main():
             os.makedirs(jsons_base_dir)
         download_s3_files_by_name(args.ucsd_config_path, jsons_base_dir, jsons_dict[temp_session], bucket = args.custom_dicom_bucket_name)
         downloaded_jsons = glob.glob(os.path.join(jsons_base_dir, '*.json'))
+
+        sys.stdout.write('   Grabbed the following jsons for current subject/session: {}\n'.format(jsons_dict[temp_session]))
+        sys.stdout.flush()
         
         best_qalas_info = None
         best_qalas_qu_score = np.inf
@@ -617,7 +625,8 @@ def main():
             for temp_scan in content:
                 if temp_scan['SeriesType'] == 'qMRI':
                     if (type(temp_scan['QU_motion']) == type(None)) or (type(temp_scan['aqc_motion']) == type(None)) or (type(temp_scan['Completed']) == type(None)):
-                        print('Processing will be attempted later: Either QU_motion, aqc_motion, or Completed status is missing for one scan within {}'.format(temp_json))
+                        sys.stdout.write('   Processing will be attempted later: Either QU_motion, aqc_motion, or Completed status is missing for one scan within {}'.format(temp_json))
+                        sys.stdout.flush()
                         qc_or_other_missing = True
                         continue
                     if temp_scan['Completed'] == 1:
@@ -632,6 +641,9 @@ def main():
                                 best_qalas_info = update_best_qalas_info_dict(temp_scan, temp_json)
                                 
         if type(best_qalas_info) != type(None):
+
+            sys.stdout.write('   Identified QALAS scan with the following info that will be targetted for processing: {}\n'.format(best_qalas_info))
+            sys.stdout.flush()
             
             #Download the tar archive that has the best qalas scan
             best_qalas_info['jsons_tested'] = sessions_to_evaluate[temp_session]
@@ -640,6 +652,9 @@ def main():
             file_names = download_s3_files_by_name(args.ucsd_config_path, dicom_base_dir, [best_qalas_info['archive_to_download']], bucket = args.custom_dicom_bucket_name)
             archives_with_qalas_to_process[temp_session] = best_qalas_info
             
+            sys.stdout.write('   The following files have been downloaded: {}\n'.format(file_names))
+            sys.stdout.flush()
+
             #Unpack the archive and identify which folder has the qalas scan
             unpack_dir = os.path.join(session_base_dir, 'dicoms', 'unpacked_archive')
             if os.path.exists(unpack_dir) == False:
@@ -647,8 +662,11 @@ def main():
             tar_path = os.path.join(dicom_base_dir, archives_with_qalas_to_process[temp_session]['archive_to_download'])
             qalas_folders, supplemental_infos = unpack_qalas_from_targz(tar_path, unpack_dir, SeriesInstanceUID = archives_with_qalas_to_process[temp_session]['SeriesInstanceUID'], StudyInstanceUID = archives_with_qalas_to_process[temp_session]['StudyInstanceUID'])    
             
-            print(qalas_folders)
-            print(supplemental_infos)
+            sys.stdout.write('   QALAS files found within: {}\n'.format(qalas_folders))
+            sys.stdout.flush()
+
+            sys.stdout.write('   Supplemental info associated with archive: {}\n'.format(supplemental_infos))
+            sys.stdout.flush()
             
             #Run SyMRI to create relaxometry maps and convert to BIDS
             output_info = convert_single_tar(qalas_folders, supplemental_infos, best_qalas_info,
@@ -658,12 +676,19 @@ def main():
                                             symri_global,
                                             dcm2bids_config)
             
+            sys.stdout.write('   Info associated with unpacking: {}\n'.format(output_info))
+            sys.stdout.flush()
+            
             #Send the results to s3
             status = push_to_s3(output_info['bids_path'], output_info['subject_label'], bucket_name = args.custom_loris_bucket_name,
                                     prefix = os.path.join('derivatives', 'ses-' + output_info['session_label'], 'symri'),
-                                    different_config_path=args.loris_config_path)     
+                                    different_config_path=args.loris_config_path)    
+
             if status == False:
                 raise ValueError('Error: Pushing data to S3 was unsuccessful.')
+            
+            sys.stdout.write('   Data successfully uploaded to S3: {}\n'.format(output_info))
+            sys.stdout.flush()
             
             #After BIDS conversion + uploading to S3, update the
             #tracking dictionary with data for this subject.
@@ -684,17 +709,22 @@ def main():
                 best_qalas_info['jsons_tested'] = jsons_dict[temp_session]
                 tracking_log_data[temp_session] = best_qalas_info
             else:
-                print('Processing of archive has been skipped due to missing QC information. Subject info will not be added to log.')
+                sys.stdout.write('   Processing of archive has been skipped due to missing QC information. Subject info will not be added to log.\n')
+                sys.stdout.flush()
 
         #Clean up the session working directory
         if args.keep_work_dirs == False:
             shutil.rmtree(session_base_dir)
+            sys.stdout.write('   Removing working directory at: {}\n'.format(session_base_dir))
+            sys.stdout.flush()
             
     #Save the tracking log
     date_time = datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S")
     new_path = os.path.join(logs_dir, 'tracking_log_{}.json'.format(date_time))
     with open(new_path, 'w') as f:
         f.write(json.dumps(tracking_log_data, indent = 5))
+    sys.stdout.write('Tracking log has been updated at: {}\n'.format(new_path))
+    sys.stdout.flush()
 
 
     #Save the reprocess log
@@ -703,6 +733,12 @@ def main():
 
     with open(reproc_log_path, 'w') as f:
         f.write(json.dumps(reproc_log_data, indent = 5))
+    sys.stdout.write('Reprocessing log has been updated at: {}\n'.format(reproc_log_path))
+    sys.stdout.flush()
+
+
+    sys.stdout.write('\n\nCurrent batch of processing has been completed. Exiting processing now.')
+    sys.stdout.flush()
 
     return
 
