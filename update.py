@@ -627,11 +627,15 @@ def main():
         if temp_session in tracking_log_data.keys():
             already_processed_archives = tracking_log_data[temp_session]['jsons_tested']
             num_same = 0
+            print('Already processed archives: {}'.format(already_processed_archives))
             for temp_json in jsons_dict[temp_session]:
+                print('Temp JSON: {}'.format(temp_json))
                 if temp_json in already_processed_archives:
                     num_same += 1
+                    print('   Match Found')
             if num_same == len(already_processed_archives):
                 #No need to do anything to update subject
+                print('   Same number of archives still...')
                 continue
             else:
                 if temp_session in to_reprocess:
