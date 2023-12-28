@@ -150,7 +150,7 @@ def download_s3_files_by_name(bids_bucket_config, output_folder, files_to_downlo
     prefix : str, default 'assembly_bids'
         The prefix to restrict the files returned by
         the search query (i.e. if data is at
-        s3://hbcd-pilot/assembly_bids/sub-1, then
+        s3://bucket_name/assembly_bids/sub-1, then
         prefix = 'assembly_bids')
         
     Returns
@@ -175,12 +175,6 @@ def download_s3_files_by_name(bids_bucket_config, output_folder, files_to_downlo
 
         parent_dir = os.path.dirname(os.path.join(output_folder, temp_file))
         if os.path.exists(parent_dir) == False: os.makedirs(parent_dir)
-        #print('Bucket Name: {}'.format(bucket))
-        #print('File to download: {}'.format(temp_file))
-        #print('Output path: {}'.format(os.path.join(output_folder, temp_file)))
-        #print(os.path.join(output_folder, temp_file))
-        #client.download_file(bucket, temp_dict['Key'], os.path.join(output_folder, temp_dict['Key']))
-        #downloaded_files.append(temp_dict['Key'])
         client.download_file(bucket, temp_file, os.path.join(output_folder, temp_file))
         downloaded_files.append(temp_file)
             
@@ -215,6 +209,10 @@ def unpack_qalas_from_targz(tar_path, output_path, SeriesInstanceUID = None, Stu
     scan. All folders that have the sequence 'QALAS'
     or 'MAGIC' within this field (does not need to be
     exact match) will then be returned in a list.
+
+    If the user specifies a SeriesInstanceUID, or 
+    StudyInstanceUID, then only DICOMS that match
+    these values will be returned.
     
     '''
     
@@ -297,16 +295,6 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
                        dcm2bids_config_path):
     
     '''Function to unpack qalas from dcm, convert to maps then bids
-    
-    The function takes as input the path to a dicom folder with targz
-    extension, and the base path for a working directory. The function
-    then looks for any DICOM series with QALAS/MAGIC in its name,
-    and it unzips them under a folder created with a timestamp at
-    working_dir_base_path. If there are more than one qalas scans
-    found, only the second one will be converted to quantitative
-    maps using the symri container. Then dcm2bids will convert the
-    resulting dicoms to bids. From there the function returns
-    a dictionary with info needed to understand what happened.
     
     '''
 
@@ -425,14 +413,6 @@ def push_to_s3(base_bids_dir, subject_label, bucket_name = None,
     
     '''
 
-    #sys.stdout.write(base_bids_dir + '\n')
-    #sys.stdout.write(subject_label + '\n')
-    #sys.stdout.write(bucket_name + '\n')
-    #sys.stdout.write(prefix + '\n')
-    #sys.stdout.write(different_config_path + '\n')
-    #sys.stdout.flush()
-    
-
     #Grab config path
     if different_config_path == False:
         config_path = ''
@@ -462,9 +442,6 @@ def push_to_s3(base_bids_dir, subject_label, bucket_name = None,
         aws_secret_access_key=secret_key,
         endpoint_url =host_base
     )
-
-    #sys.stdout.write('Client Info: {}\n'.format(client))
-    #sys.stdout.flush()
     
     try:
         sys.stdout.write('Uploading data for sub-{}\n'.format(subject_label))
@@ -483,6 +460,89 @@ def push_to_s3(base_bids_dir, subject_label, bucket_name = None,
     
 
 def main():
+
+    '''Converts QALAS DICOM archives to BIDS derivatives relaxometry maps.
+
+    This script will download QALAS DICOM archives from an S3 bucket, unpack
+    them, convert them to relaxometry maps using the SyMRI container, and then
+    convert the resulting DICOMs to BIDS derivatives. The script will then
+    upload the BIDS derivatives to a different S3 bucket.
+
+    Steps of processing are roughly as follows:
+    1. Identify all json files in the dicom bucket that have the ending
+         '_mripcqc_info.json' and group them by subject/session. The
+         json files have information about the quality of the DICOMs within
+         a given archive. If a subject/session combo has multiple archives,
+         and/or multiple QALAS scans, the best QALAS scan will be kept for
+         processing based on QC info provided by the json file.
+    2. If the file reproc_log.json exists in the base directory, then
+        load it. This file contains a list of subjects/sessions that could need
+        to be reprocessed based on new data. If a subject appears in the
+        consider_reprocessing portion of the json, any new archives for the
+        session will be ignored. If the user has added a subject/session
+        to the to_reprocess portion of the json, then the code will attempt
+        to overwrite any existing processing for that subject/session. This
+        may result in either the same or different processing results depending
+        on the new data that is available for the subject. If the reproc_log.json
+        file does not exist, then the code will create it.
+    3. Iterate through all subjects/sessions that need to be processed. For subjects/
+        sessions that have a QALAS scan and are ready to be processed, download the
+        archive containing the best QALAS scan, unpack the archive, and identify
+        the dicom folder that contains the QALAS scan.
+    4. Run the SyMRI container on the QALAS dicom folder to generate relaxometry maps.
+    5. Run dcm2bids on the resulting dicoms to convert them to BIDS derivatives.
+        Also copy over a copy of the log file generated by SyMRI during processing. Further,
+        add some custom fields to the metadata of the json files generated by dcm2bids that
+        will be accompanying the BIDS derivatives.
+    6. Upload the BIDS derivatives to a different S3 bucket.
+    7. Update the tracking log with information about the processing that was just completed.
+    8. Update the reproc_log.json file with information about subjects/sessions that may need
+        to be reprocessed in the future. If you want to reprocess a subject, then add the subject
+        to the to_reprocess portion of the json.
+
+    If processing is interrupted after partial processing has occurred, the derivatives may still be
+    uploaded to S3 despite the tracking logs/jsons not being updated. Upon reprocessing, data from these
+    runs will be overwritten which should not cause any issues. If the data under
+    {base_directory_for_proc}/work_dir is not properly deleted because of an error, this
+    may require the user to delete any contents of the working directory. As long as the log
+    files remain intact, processing should be able to pick up in the usual fashion following the deletion.
+    
+    Parameters
+    ----------
+    ucsd_config_path : string
+        Path to s3 config file for s3 account that has bucket with dicom
+        archives (i.e. .tar.gz files)
+    loris_config_path : string
+        Path to s3 config file for s3 account that has bucket where BIDS
+        derivatives will be stored.
+    symri_container_path : string
+        Path to SyMRI container that will be used for calculating relaxometry
+        maps. Container should already have license file set up.
+    base_directory_for_proc : string
+        Path to directory where processing will occur and where logs will be
+        stored. If you change this directory on subsequent calls to this function,
+        then processing will start over from scratch.
+    custom_symri_layout : string, default None
+        Path to a non-default SyMRI layout file.
+    custom_global_path : string, default None
+        Path to a non-default SyMRI global file.
+    custom_dcm2bids_config_path : string, default None
+        Path to a non-default dcm2bids config file.
+    custom_processing_batch_size : int, default 20
+        The number of unique subject/session combos that you want to attempt to process.
+    custom_dicom_bucket_name : string, default 'midb-hbcd-ucsd-main-pr-dicoms'
+        The name of the bucket to grab dicom archives and json files from. Assumes
+        that the each json file/dicom archive is formatted using the format from UCSD
+        for the HBCD study.
+    custom_loris_bucket_name : string, default 'midb-hbcd-main-pr'
+        The name of the bucket where results will be stored. Results will get stored under
+        the following prefix: 'derivatives/ses-<session_label>/symri' within the bucket.
+    keep_work_dirs : bool, default False
+        If used, local copies of dicom/niftis generated will be saved. Deletion may be required
+        for subsequent processing in specific cases.
+    
+    '''
+
     parser = argparse.ArgumentParser(description="Workflow to Make Relaxometry Maps from QALAS Images Using SyMRI Container.")
     parser.add_argument("ucsd_config_path", help="Path to ucsd s3 config file.")
     parser.add_argument("loris_config_path", help="Path to loris s3 config file.")
@@ -495,7 +555,6 @@ def main():
     parser.add_argument('--custom_dicom_bucket_name', help="The name of the bucket to grab dicoms from.", type=str, default='midb-hbcd-ucsd-main-pr-dicoms')
     parser.add_argument('--custom_loris_bucket_name', help="The name of the bucket where results will be stored.", type=str, default='midb-hbcd-main-pr')
     parser.add_argument('--keep_work_dirs', help="If used, local copies of dicom/niftis generated will be saved. Deletion may be required for subsequent processing in specific cases.", action='store_true')
-    parser.add_argument('--check_date', help="If used, data will only be processed if it is at least ~1 day old.", action='store_true')
     args = parser.parse_args()
 
 
