@@ -628,8 +628,7 @@ def main():
             already_processed_archives = tracking_log_data[temp_session]['jsons_tested']
             num_same = 0
             for temp_json in jsons_dict[temp_session]:
-                tar_name = temp_json.replace('_mripcqc_info.json', '.tar.gz')
-                if tar_name in already_processed_archives:
+                if temp_json in already_processed_archives:
                     num_same += 1
             if num_same == len(already_processed_archives):
                 #No need to do anything to update subject
