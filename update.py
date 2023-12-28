@@ -195,7 +195,7 @@ def update_best_qalas_info_dict(scan_dict, json_name):
     best_qalas_info['SeriesInstanceUID'] = scan_dict['SeriesInstanceUID']
     best_qalas_info['StudyInstanceUID'] = scan_dict['StudyInstanceUID']
     best_qalas_info['SubjID'] = scan_dict['SubjID']
-    best_qalas_info['json_name'] = json_name
+    best_qalas_info['json_for_unpacked_archive'] = json_name
     best_qalas_info['archive_to_download'] = json_name.replace('_mripcqc_info.json', '.tar.gz').split('/')[-1]
     
     return best_qalas_info
