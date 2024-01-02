@@ -743,6 +743,9 @@ def main():
                                             symri_global,
                                             dcm2bids_config)
             
+            if output_info['num_niftis_generated'] != 3:
+                raise NameError('   Error: Expected 3 niftis to be generated but found {} instead.'.format(output_info['num_niftis_generated']))
+            
             sys.stdout.write('   Info associated with unpacking: {}\n'.format(output_info))
             sys.stdout.flush()
             
