@@ -611,11 +611,13 @@ def main():
         to_reprocess = reproc_log_data['to_reprocess']
         consider_reprocessing = reproc_log_data['consider_reprocessing']
         data_in_qc_but_not_archive = reproc_log_data['data_in_qc_but_not_archive']
+        no_files_to_upload = reproc_log_data['no_files_to_upload']
     else:
         reproc_log_data = {}
         to_reprocess = []
         consider_reprocessing = []
         data_in_qc_but_not_archive = []
+        no_files_to_upload = []
 
     reprocess_attempted = []
             
@@ -744,7 +746,10 @@ def main():
                                             dcm2bids_config)
             
             if output_info['num_niftis_generated'] != 3:
-                raise NameError('   Error: Expected 3 niftis to be generated but found {} instead.'.format(output_info['num_niftis_generated']))
+                no_files_to_upload.append(temp_session)
+                sys.stdout.write('   Participant didnt have any data to upload... saving info for debugging.')
+                sys.stdout.flush()
+                continue
             
             sys.stdout.write('   Info associated with unpacking: {}\n'.format(output_info))
             sys.stdout.flush()
@@ -804,6 +809,7 @@ def main():
     consider_reprocessing = list(set(consider_reprocessing))
     reproc_log_data['consider_reprocessing'] = consider_reprocessing
     reproc_log_data['data_in_qc_but_not_archive'] = list(set(data_in_qc_but_not_archive))
+    reproc_log_data['no_files_to_upload'] = list(set(no_files_to_upload))
 
     with open(reproc_log_path, 'w') as f:
         f.write(json.dumps(reproc_log_data, indent = 5))
