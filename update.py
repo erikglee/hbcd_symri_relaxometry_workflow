@@ -276,14 +276,18 @@ def targz_to_sub_ses_labels(targz_name):
     
     split_name = targz_name.split('/')[-1].split('_')
     if len(split_name) >= 3:
-        if (len(split_name[0]) == 9) and (len(split_name[1]) == 6) and (split_name[2][0] == 'V'):
+        if (len(split_name[0]) == 9) and (len(split_name[1]) == 6) and (len(split_name[2]) == 3) and (split_name[2][0] == 'V'):
             if len(split_name) == 3:
                 sub_label = split_name[1]
                 ses_label = split_name[2].split('.')[0]
             else:
                 sub_label = split_name[1]
                 ses_label = split_name[2]
-    
+        else:
+            sys.stdout.write('   Unable to parse subject/session labels from the following archive name: {}\n'.format(targz_name.split('/')[-1]))
+            sys.stdout.write('   Scripts were expecting 9 char PSCID, 6 char DCCID, and 3 char session label starting with V for visit, all seperated by underscores (with optional additional text to follow).\n')
+            sys.stdout.flush()
+            
     return sub_label, ses_label
 
 
@@ -324,7 +328,6 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         output_info['num_qalas_scans'] = 0
         output_info['num_niftis_generated'] = 0
         output_info['symri_conversion_error'] = 0
-        shutil.rmtree(output_info['working_dir_path'])
         return output_info
 
     #Unpack ONLY the qalas folders from targz
@@ -333,7 +336,6 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         output_info['num_qalas_scans'] = -1
         output_info['num_niftis_generated'] = 0
         output_info['symri_conversion_error'] = 1
-        shutil.rmtree(output_info['working_dir_path'])
         return output_info
         
     if len(qalas_folders) == 1:
