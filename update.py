@@ -554,7 +554,7 @@ def main():
     parser.add_argument('--custom_global_path', help="Path to a non-default SyMRI global file.", type=str)
     parser.add_argument('--custom_dcm2bids_config_path', help="Path to a non-default dcm2bids config file.", type=str)
     parser.add_argument('--custom_processing_batch_size', help="The number of dicom archives that you want to attempt to process.", type=int, default=20)
-    parser.add_argument('--custom_dicom_bucket_name', help="The name of the bucket to grab dicoms from.", type=str, default='midb-hbcd-ucsd-main-pr-dicoms')
+    parser.add_argument('--custom_dicom_bucket_name', help="The name of the bucket to grab dicoms from.", type=str, default='hbcd-dicoms-main-study')
     parser.add_argument('--custom_loris_bucket_name', help="The name of the bucket where results will be stored.", type=str, default='midb-hbcd-main-pr')
     parser.add_argument('--keep_work_dirs', help="If used, local copies of dicom/niftis generated will be saved. Deletion may be required for subsequent processing in specific cases.", action='store_true')
     args = parser.parse_args()
