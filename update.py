@@ -170,13 +170,18 @@ def download_s3_files_by_name(bids_bucket_config, output_folder, files_to_downlo
     _, client = create_page_iterator(bucket = bucket, prefix = '', bids_bucket_config = bids_bucket_config)
 
     #Iterate through bucket to find potential subjects
-    downloaded_files = []
-    for temp_file in files_to_download:
+    try:
+        downloaded_files = []
+        for temp_file in files_to_download:
 
-        parent_dir = os.path.dirname(os.path.join(output_folder, temp_file))
-        if os.path.exists(parent_dir) == False: os.makedirs(parent_dir)
-        client.download_file(bucket, temp_file, os.path.join(output_folder, temp_file))
-        downloaded_files.append(temp_file)
+            parent_dir = os.path.dirname(os.path.join(output_folder, temp_file))
+            if os.path.exists(parent_dir) == False: os.makedirs(parent_dir)
+            client.download_file(bucket, temp_file, os.path.join(output_folder, temp_file))
+            downloaded_files.append(temp_file)
+    except:
+        sys.stdout.write('Error: Unable to download the following file: {}\n'.format(temp_file))
+        sys.stdout.flush()
+        return None
             
     #return list of s3 subjects
     return downloaded_files
@@ -614,12 +619,14 @@ def main():
         consider_reprocessing = reproc_log_data['consider_reprocessing']
         data_in_qc_but_not_archive = reproc_log_data['data_in_qc_but_not_archive']
         no_files_to_upload = reproc_log_data['no_files_to_upload']
+        missing_archive = reproc_log_data['missing_archive']
     else:
         reproc_log_data = {}
         to_reprocess = []
         consider_reprocessing = []
         data_in_qc_but_not_archive = []
         no_files_to_upload = []
+        missing_archive = []
 
     reprocess_attempted = []
             
@@ -672,7 +679,9 @@ def main():
         jsons_base_dir = os.path.join(session_base_dir, 'qc_jsons') 
         if os.path.exists(jsons_base_dir) == False:
             os.makedirs(jsons_base_dir)
-        download_s3_files_by_name(args.ucsd_config_path, jsons_base_dir, jsons_dict[temp_session], bucket = args.custom_dicom_bucket_name)
+        downloaded_files = download_s3_files_by_name(args.ucsd_config_path, jsons_base_dir, jsons_dict[temp_session], bucket = args.custom_dicom_bucket_name)
+        if type(downloaded_files) == type(None):
+            raise ValueError('Error: Unable to download jsons for current subject/session: {}. This should probably never happen if scripts are configured correctly.'.format(temp_session))
         downloaded_jsons = glob.glob(os.path.join(jsons_base_dir, '*.json'))
 
         sys.stdout.write('   Grabbed the following jsons for current subject/session: {}\n'.format(jsons_dict[temp_session]))
@@ -715,6 +724,11 @@ def main():
             if os.path.exists(dicom_base_dir) == False:
                 os.makedirs(dicom_base_dir)
             file_names = download_s3_files_by_name(args.ucsd_config_path, dicom_base_dir, [best_qalas_info['archive_to_download']], bucket = args.custom_dicom_bucket_name)
+            if type(file_names) == type(None):
+                sys.stdout.write('   Unable to download dicoms for current subject/session: {}. Skipping subject archive and adding them to reprocessing log.\n'.format(temp_session))
+                sys.stdout.flush()
+                missing_archive.append(temp_session)
+                continue
             archives_with_qalas_to_process[temp_session] = best_qalas_info
             
             sys.stdout.write('   The following files have been downloaded: {}\n'.format(file_names))
@@ -812,6 +826,7 @@ def main():
     reproc_log_data['consider_reprocessing'] = consider_reprocessing
     reproc_log_data['data_in_qc_but_not_archive'] = list(set(data_in_qc_but_not_archive))
     reproc_log_data['no_files_to_upload'] = list(set(no_files_to_upload))
+    missing_archive['missing_archive'] = list(set(missing_archive))
 
     with open(reproc_log_path, 'w') as f:
         f.write(json.dumps(reproc_log_data, indent = 5))
