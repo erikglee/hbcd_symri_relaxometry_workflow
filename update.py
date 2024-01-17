@@ -562,6 +562,7 @@ def main():
     parser.add_argument('--custom_dicom_bucket_name', help="The name of the bucket to grab dicoms from.", type=str, default='hbcd-dicoms-main-study')
     parser.add_argument('--custom_loris_bucket_name', help="The name of the bucket where results will be stored.", type=str, default='midb-hbcd-main-pr')
     parser.add_argument('--keep_work_dirs', help="If used, local copies of dicom/niftis generated will be saved. Deletion may be required for subsequent processing in specific cases.", action='store_true')
+    parser.add_argument('--dicom_prefix', help="Prefix to include in front of subject path when searching for dicom archives.", type=str, default='')
     args = parser.parse_args()
 
 
@@ -584,7 +585,7 @@ def main():
         dcm2bids_config =  os.path.join(Path(inspect.getfile(main)).absolute().parent.resolve(), 'dcm2bids_config.json')
 
     #First grab all JSONS and group them by session
-    files = get_file_names_with_ending(args.custom_dicom_bucket_name, args.ucsd_config_path, ending = '_mripcqc_info.json', prefix = '')
+    files = get_file_names_with_ending(args.custom_dicom_bucket_name, args.ucsd_config_path, ending = '_mripcqc_info.json', prefix = args.dicom_prefix)
     jsons_dict = {}
     for temp_file in files:
         file_split = '_'.join(temp_file.split('_')[0:3])
