@@ -827,7 +827,7 @@ def main():
     reproc_log_data['consider_reprocessing'] = consider_reprocessing
     reproc_log_data['data_in_qc_but_not_archive'] = list(set(data_in_qc_but_not_archive))
     reproc_log_data['no_files_to_upload'] = list(set(no_files_to_upload))
-    missing_archive['missing_archive'] = list(set(missing_archive))
+    reproc_log_data['missing_archive'] = list(set(missing_archive))
 
     with open(reproc_log_path, 'w') as f:
         f.write(json.dumps(reproc_log_data, indent = 5))
