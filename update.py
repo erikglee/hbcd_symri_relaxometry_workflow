@@ -485,9 +485,9 @@ def main():
     2. If the file reproc_log.json exists in the base directory, then
         load it. This file contains a list of subjects/sessions that could need
         to be reprocessed based on new data. If a subject appears in the
-        consider_reprocessing portion of the json, any new archives for the
-        session will be ignored. If the user has added a subject/session
-        to the to_reprocess portion of the json, then the code will attempt
+        any portion of the json aside from "to_reprocess", any new or existing
+        archives for the session will be ignored. If the user has added a 
+        subject/session to the to_reprocess portion of the json, then the code will attempt
         to overwrite any existing processing for that subject/session. This
         may result in either the same or different processing results depending
         on the new data that is available for the subject. If the reproc_log.json
@@ -617,19 +617,23 @@ def main():
         with open(reproc_log_path, 'r') as f:
             reproc_log_data = json.load(f)
         to_reprocess = reproc_log_data['to_reprocess']
-        consider_reprocessing = reproc_log_data['consider_reprocessing']
-        data_in_qc_but_not_archive = reproc_log_data['data_in_qc_but_not_archive']
+        new_archive_available = reproc_log_data['new_archive_available']
+        qalas_in_qc_but_not_archive = reproc_log_data['qalas_in_qc_but_not_archive']
         no_files_to_upload = reproc_log_data['no_files_to_upload']
         missing_archive = reproc_log_data['missing_archive']
     else:
         reproc_log_data = {}
         to_reprocess = []
-        consider_reprocessing = []
-        data_in_qc_but_not_archive = []
+        new_archive_available = []
+        qalas_in_qc_but_not_archive = []
         no_files_to_upload = []
         missing_archive = []
 
     reprocess_attempted = []
+    sessions_to_skip = new_archive_available + qalas_in_qc_but_not_archive + no_files_to_upload + missing_archive
+    for temp_session in to_reprocess:
+        if temp_session in sessions_to_skip:
+            sessions_to_skip.remove(temp_session)
             
     #Second, figure out which jsons (1) represent sessions that need to be
     #processed, (2) sessions that may need to be modified, and (3) sessions
@@ -638,6 +642,14 @@ def main():
     batch_limit = args.custom_processing_batch_size
     num_to_process = 0
     for temp_session in jsons_dict.keys():
+        #Dont process the subject if there was previously something wrong
+        #with processing and new processing wasnt explicitly specified by
+        #the to_reprocess field.
+        if temp_session in sessions_to_skip:
+            continue
+
+        #If the session has already been processed, then check to see if
+        #any new data has come in since then.
         if temp_session in tracking_log_data.keys():
             already_processed_archives = tracking_log_data[temp_session]['jsons_tested']
             num_same = 0
@@ -653,7 +665,9 @@ def main():
                     reprocess_attempted.append(temp_session)
                     num_to_process += 1
                 else:
-                    consider_reprocessing.append(temp_session)
+                    new_archive_available.append(temp_session)
+        
+        #If the session has not been processed, then add it to the list
         else:
             if num_to_process < batch_limit:
                 
@@ -744,7 +758,7 @@ def main():
             if len(qalas_folders) == 0:
                 sys.stdout.write('   Found QALAS in QC file but unable to find QALAS scan within archive. Skipping subject archive and adding them to reprocessing log.\n')
                 sys.stdout.flush()
-                data_in_qc_but_not_archive.append(temp_session)
+                qalas_in_qc_but_not_archive.append(temp_session)
                 continue
 
 
@@ -789,8 +803,10 @@ def main():
             #If this session was in the reprocess list, remove it
             if temp_session in reprocess_attempted:
                 reprocess_attempted.remove(temp_session)
-                consider_reprocessing.remove(temp_session)
-            
+                if temp_session in new_archive_available: new_archive_available.remove(temp_session)
+                if temp_session in qalas_in_qc_but_not_archive: qalas_in_qc_but_not_archive.remove(temp_session)
+                if temp_session in no_files_to_upload: no_files_to_upload.remove(temp_session)
+                if temp_session in missing_archive: missing_archive.remove(temp_session)
         
         else:
             
@@ -823,9 +839,9 @@ def main():
 
     #Save the reprocess log
     reproc_log_data['to_reprocess'] = [i for i in to_reprocess if i not in reprocess_attempted]
-    consider_reprocessing = list(set(consider_reprocessing))
-    reproc_log_data['consider_reprocessing'] = consider_reprocessing
-    reproc_log_data['data_in_qc_but_not_archive'] = list(set(data_in_qc_but_not_archive))
+    new_archive_available = list(set(new_archive_available))
+    reproc_log_data['new_archive_available'] = new_archive_available
+    reproc_log_data['qalas_in_qc_but_not_archive'] = list(set(qalas_in_qc_but_not_archive))
     reproc_log_data['no_files_to_upload'] = list(set(no_files_to_upload))
     reproc_log_data['missing_archive'] = list(set(missing_archive))
 
