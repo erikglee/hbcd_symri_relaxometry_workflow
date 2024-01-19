@@ -646,6 +646,8 @@ def main():
         #with processing and new processing wasnt explicitly specified by
         #the to_reprocess field.
         if temp_session in sessions_to_skip:
+            sys.stdout.write('Skipping session due to status in reproc_log.json file: {}\n'.format(temp_session))
+            sys.stdout.flush()
             continue
 
         #If the session has already been processed, then check to see if
