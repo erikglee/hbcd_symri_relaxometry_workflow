@@ -619,18 +619,18 @@ def main():
         to_reprocess = reproc_log_data['to_reprocess']
         new_archive_available = reproc_log_data['new_archive_available']
         qalas_in_qc_but_not_archive = reproc_log_data['qalas_in_qc_but_not_archive']
-        no_files_to_upload = reproc_log_data['no_files_to_upload']
+        no_niftis_to_upload = reproc_log_data['no_niftis_to_upload']
         missing_archive = reproc_log_data['missing_archive']
     else:
         reproc_log_data = {}
         to_reprocess = []
         new_archive_available = []
         qalas_in_qc_but_not_archive = []
-        no_files_to_upload = []
+        no_niftis_to_upload = []
         missing_archive = []
 
     reprocess_attempted = []
-    sessions_to_skip = new_archive_available + qalas_in_qc_but_not_archive + no_files_to_upload + missing_archive
+    sessions_to_skip = new_archive_available + qalas_in_qc_but_not_archive + no_niftis_to_upload + missing_archive
     for temp_session in to_reprocess:
         if temp_session in sessions_to_skip:
             sessions_to_skip.remove(temp_session)
@@ -777,7 +777,7 @@ def main():
                                             dcm2bids_config)
             
             if output_info['num_niftis_generated'] != 3:
-                no_files_to_upload.append(temp_session)
+                no_niftis_to_upload.append(temp_session)
                 sys.stdout.write('   Participant didnt have any data to upload... saving info for debugging.')
                 sys.stdout.flush()
                 continue
@@ -805,7 +805,7 @@ def main():
                 reprocess_attempted.remove(temp_session)
                 if temp_session in new_archive_available: new_archive_available.remove(temp_session)
                 if temp_session in qalas_in_qc_but_not_archive: qalas_in_qc_but_not_archive.remove(temp_session)
-                if temp_session in no_files_to_upload: no_files_to_upload.remove(temp_session)
+                if temp_session in no_niftis_to_upload: no_niftis_to_upload.remove(temp_session)
                 if temp_session in missing_archive: missing_archive.remove(temp_session)
         
         else:
@@ -842,7 +842,7 @@ def main():
     new_archive_available = list(set(new_archive_available))
     reproc_log_data['new_archive_available'] = new_archive_available
     reproc_log_data['qalas_in_qc_but_not_archive'] = list(set(qalas_in_qc_but_not_archive))
-    reproc_log_data['no_files_to_upload'] = list(set(no_files_to_upload))
+    reproc_log_data['no_niftis_to_upload'] = list(set(no_niftis_to_upload))
     reproc_log_data['missing_archive'] = list(set(missing_archive))
 
     with open(reproc_log_path, 'w') as f:
