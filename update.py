@@ -348,6 +348,9 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     else:
         raise NameError('Error: Script is trying to unpack data for the following archive but multiple qalas archives were erroneously identified: {}'.format(qalas_info_dict['archive_to_download']))
     
+    #Update the supplmental info dict with QC values.
+    supplemental_infos[0]['QU_motion'] = qalas_info_dict['QU_motion']
+    supplemental_infos[0]['aqc_motion'] = qalas_info_dict['aqc_motion']
     
     initial_log_path = os.path.join(working_dir_base_path, 'symri_container.log')
     
