@@ -369,13 +369,24 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         
     #Run dcm2bids conversion
     output_info['num_niftis_generated'] = 0
+    output_info['dcm2bids_conversion_error'] = 0
     sys.stdout.write('   dcm_maps_path: {}\n'.format(dcm_maps_path))
     sys.stdout.flush()
     if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 6:
 
-        dcm2bids_command = dcm2bids_base_command.format(dcm2bids_executable_path=dcm2bids_executable_path, dcm_maps_path=dcm_maps_path, dcm2bids_config_path=dcm2bids_config_path, tmp_bids_dir=tmp_bids_dir, subject_label=subject_label, session_label=session_label)
-        os.system(dcm2bids_command)
-        shutil.copyfile(initial_log_path, os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat', 'sub-{}_ses-{}_acq-QALAS_desc-SymriContainer.log'.format(output_info['subject_label'], output_info['session_label'])))
+        try:
+            dcm2bids_command = dcm2bids_base_command.format(dcm2bids_executable_path=dcm2bids_executable_path, dcm_maps_path=dcm_maps_path, dcm2bids_config_path=dcm2bids_config_path, tmp_bids_dir=tmp_bids_dir, subject_label=subject_label, session_label=session_label)
+            os.system(dcm2bids_command)
+            sys.stdout.write('   dcm2bids Command:\n')
+            sys.stdout.write('      ' + dcm2bids_command + '\n')
+            shutil.copyfile(initial_log_path, os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat', 'sub-{}_ses-{}_acq-QALAS_desc-SymriContainer.log'.format(output_info['subject_label'], output_info['session_label'])))
+        except:
+            sys.stdout.write('   dcm2bids conversion failed for the following archive: {}\n'.format(qalas_info_dict['archive_to_download']))
+            sys.stdout.flush()
+            output_info['num_niftis_generated'] += len(glob.glob(os.path.join(tmp_bids_dir, 'sub*','ses*','anat','*.nii.gz')))
+            output_info['symri_conversion_error'] = 0
+            output_info['dcm2bids_conversion_error'] = 1
+            return output_info
 
         output_info['symri_conversion_error'] = 0
         output_info['num_niftis_generated'] += len(glob.glob(os.path.join(tmp_bids_dir, 'sub*','ses*','anat','*.nii.gz')))
