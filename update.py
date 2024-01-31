@@ -840,6 +840,7 @@ def main():
 
         #Clean up the session working directory
         if args.keep_work_dirs == False:
+            os.chdir(args.base_directory_for_proc)
             shutil.rmtree(session_base_dir)
             sys.stdout.write('   Removing working directory at: {}\n\n\n'.format(session_base_dir))
             sys.stdout.flush()
