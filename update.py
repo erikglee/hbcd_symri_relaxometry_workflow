@@ -645,11 +645,13 @@ def main():
         no_niftis_to_upload = []
         missing_archive = []
 
+    #in the definition below "sessions_to_skip" includes subjects that should/shouldn't be
+    #reprocessed. If a subject is in the to_reprocess list, then this status will be overwritten.
     reprocess_attempted = []
     sessions_to_skip = new_archive_available + qalas_in_qc_but_not_archive + no_niftis_to_upload + missing_archive
-    for temp_session in to_reprocess:
-        if temp_session in sessions_to_skip:
-            sessions_to_skip.remove(temp_session)
+    #for temp_session in to_reprocess:
+    #    if temp_session in sessions_to_skip:
+    #        sessions_to_skip.remove(temp_session)
             
     #Second, figure out which jsons (1) represent sessions that need to be
     #processed, (2) sessions that may need to be modified, and (3) sessions
