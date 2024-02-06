@@ -312,7 +312,7 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     #Create working directory with time stamp to store BIDS output
     tmp_bids_dir = os.path.join(working_dir_base_path, 'tmp_bids')
     if os.path.exists(tmp_bids_dir) == False:
-        sys.stdout.write('Making working directory at: {}\n'.format(tmp_bids_dir))
+        sys.stdout.write('   Making working directory at: {}\n'.format(tmp_bids_dir))
         sys.stdout.flush()
         os.makedirs(tmp_bids_dir)
 
