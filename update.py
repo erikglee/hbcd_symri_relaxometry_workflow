@@ -7,6 +7,7 @@ from datetime import timezone
 from pathlib import Path
 import inspect
 import argparse
+import time
 
 
 def update_bids_json(json_file, supplemental_info = None):
@@ -372,6 +373,7 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     output_info['dcm2bids_conversion_error'] = 0
     sys.stdout.write('   dcm_maps_path: {}\n'.format(dcm_maps_path))
     sys.stdout.flush()
+    time.sleep(10)
     if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 6:
 
         try:
