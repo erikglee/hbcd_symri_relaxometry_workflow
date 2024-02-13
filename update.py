@@ -869,7 +869,8 @@ def main():
     sys.stdout.flush()
 
 
-    sys.stdout.write('\n\nCurrent batch of processing has been completed. Exiting processing now.')
+    sys.stdout.write('\n\nCurrent batch of processing has been completed. Exiting processing now.\n')
+    sys.stdout.write('Reprocessing was attempted for: {}'.format(reprocess_attempted))
     sys.stdout.flush()
 
     return
