@@ -219,15 +219,15 @@ def qalas_selection_with_qu_motion(downloaded_jsons):
                     sys.stdout.write('   Processing will either be attempted later or without QU_motion: Either QU_motion, aqc_motion, or HBCD_compliant status is missing for one scan within {}'.format(temp_json))
                     sys.stdout.flush()
                     qc_or_other_missing = True
-                    sys.stdout.write('QU: {}'.format(temp_scan['QU_motion']))
-                    sys.stdout.write('Compliant: {}'.format(temp_scan['HBCD_compliant']))
-                    sys.stdout.write('AQ: {}'.format(temp_scan['aqc_motion']))
+                    sys.stdout.write('QU: {}\n'.format(temp_scan['QU_motion']))
+                    sys.stdout.write('Compliant: {}\n'.format(temp_scan['HBCD_compliant']))
+                    sys.stdout.write('AQ: {}\n'.format(temp_scan['aqc_motion']))
                     sys.stdout.flush()
                     return None, True
                 try:
-                    sys.stdout.write('QU: {}'.format(temp_scan['QU_motion']))
-                    sys.stdout.write('Compliant: {}'.format(temp_scan['HBCD_compliant']))
-                    sys.stdout.write('AQ: {}'.format(temp_scan['aqc_motion']))
+                    sys.stdout.write('QU: {}\n'.format(temp_scan['QU_motion']))
+                    sys.stdout.write('Compliant: {}\n'.format(temp_scan['HBCD_compliant']))
+                    sys.stdout.write('AQ: {}\n'.format(temp_scan['aqc_motion']))
                     sys.stdout.flush()
                     if temp_scan['HBCD_compliant'] == 1:
                         if temp_scan['QU_motion'] < best_qalas_qu_score:
@@ -274,9 +274,9 @@ def qalas_selection_without_qu_motion(downloaded_jsons):
                     sys.stdout.flush()
                     return None, True
                 try:
-                    sys.stdout.write('QU: {}'.format(temp_scan['QU_motion']))
-                    sys.stdout.write('Compliant: {}'.format(temp_scan['HBCD_compliant']))
-                    sys.stdout.write('AQ: {}'.format(temp_scan['aqc_motion']))
+                    sys.stdout.write('QU: {}\n'.format(temp_scan['QU_motion']))
+                    sys.stdout.write('Compliant: {}\n'.format(temp_scan['HBCD_compliant']))
+                    sys.stdout.write('AQ: {}\n'.format(temp_scan['aqc_motion']))
                     sys.stdout.flush()
                     if temp_scan['HBCD_compliant'] == 1:
                         if temp_scan['aqc_motion'] < best_qalas_aqc_score:
