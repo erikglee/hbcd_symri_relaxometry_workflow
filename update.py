@@ -217,7 +217,7 @@ def qalas_selection_with_qu_motion(downloaded_jsons):
                 sys.stdout.write('            QU: {}\n'.format(temp_scan['QU_motion']))
                 sys.stdout.write('            Compliant: {}\n'.format(temp_scan['HBCD_compliant']))
                 sys.stdout.write('            AQ: {}\n'.format(temp_scan['aqc_motion']))
-                sys.stdout.write('            AQ: {}\n'.format(temp_scan['brain_SNR']))
+                sys.stdout.write('            brain_SNR: {}\n'.format(temp_scan['brain_SNR']))
                 sys.stdout.flush()
                 #Be sure that at least the QU_motion, aqc_motion and HBCD_compliant fields are there
                 if (type(temp_scan['QU_motion']) == type(None)) or (type(temp_scan['aqc_motion']) == type(None)) or (type(temp_scan['HBCD_compliant']) == type(None)) or (type(temp_scan['brain_SNR']) == type(None)):
