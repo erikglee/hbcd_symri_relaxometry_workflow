@@ -225,6 +225,10 @@ def qalas_selection_with_qu_motion(downloaded_jsons):
                     sys.stdout.flush()
                     return None, True
                 try:
+                    sys.stdout.write('QU: {}'.format(temp_scan['QU_motion']))
+                    sys.stdout.write('Compliant: {}'.format(temp_scan['HBCD_compliant']))
+                    sys.stdout.write('AQ: {}'.format(temp_scan['aqc_motion']))
+                    sys.stdout.flush()
                     if temp_scan['HBCD_compliant'] == 1:
                         if temp_scan['QU_motion'] < best_qalas_qu_score:
                             best_qalas_qu_score = temp_scan['QU_motion']
@@ -270,6 +274,10 @@ def qalas_selection_without_qu_motion(downloaded_jsons):
                     sys.stdout.flush()
                     return None, True
                 try:
+                    sys.stdout.write('QU: {}'.format(temp_scan['QU_motion']))
+                    sys.stdout.write('Compliant: {}'.format(temp_scan['HBCD_compliant']))
+                    sys.stdout.write('AQ: {}'.format(temp_scan['aqc_motion']))
+                    sys.stdout.flush()
                     if temp_scan['HBCD_compliant'] == 1:
                         if temp_scan['aqc_motion'] < best_qalas_aqc_score:
                             best_qalas_aqc_score = temp_scan['aqc_motion']
