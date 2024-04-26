@@ -205,7 +205,6 @@ def qalas_selection_with_qu_motion(downloaded_jsons):
     best_qalas_qu_score = np.inf
     best_qalas_aqc_score = np.inf
     best_qalas_snr = -1*np.inf
-    qc_or_other_missing = False
     for temp_json in downloaded_jsons:
         print('         For loop on jsons')
         with open(temp_json, 'r') as f:
@@ -218,7 +217,6 @@ def qalas_selection_with_qu_motion(downloaded_jsons):
                 if (type(temp_scan['QU_motion']) == type(None)) or (type(temp_scan['aqc_motion']) == type(None)) or (type(temp_scan['HBCD_compliant']) == type(None)) or (type(temp_scan['brain_SNR']) == type(None)):
                     sys.stdout.write('   Processing will either be attempted later or without QU_motion: Either QU_motion, aqc_motion, or HBCD_compliant status is missing for one scan within {}'.format(temp_json))
                     sys.stdout.flush()
-                    qc_or_other_missing = True
                     sys.stdout.write('QU: {}\n'.format(temp_scan['QU_motion']))
                     sys.stdout.write('Compliant: {}\n'.format(temp_scan['HBCD_compliant']))
                     sys.stdout.write('AQ: {}\n'.format(temp_scan['aqc_motion']))
@@ -229,7 +227,7 @@ def qalas_selection_with_qu_motion(downloaded_jsons):
                     sys.stdout.write('Compliant: {}\n'.format(temp_scan['HBCD_compliant']))
                     sys.stdout.write('AQ: {}\n'.format(temp_scan['aqc_motion']))
                     sys.stdout.flush()
-                    if temp_scan['HBCD_compliant'] == 1:
+                    if temp_scan['HBCD_compliant'] == 'Yes':
                         if temp_scan['QU_motion'] < best_qalas_qu_score:
                             best_qalas_qu_score = temp_scan['QU_motion']
                             best_qalas_aqc_score = temp_scan['aqc_motion']
@@ -278,7 +276,7 @@ def qalas_selection_without_qu_motion(downloaded_jsons):
                     sys.stdout.write('Compliant: {}\n'.format(temp_scan['HBCD_compliant']))
                     sys.stdout.write('AQ: {}\n'.format(temp_scan['aqc_motion']))
                     sys.stdout.flush()
-                    if temp_scan['HBCD_compliant'] == 1:
+                    if temp_scan['HBCD_compliant'] == 'Yes':
                         if temp_scan['aqc_motion'] < best_qalas_aqc_score:
                             best_qalas_aqc_score = temp_scan['aqc_motion']
                             best_qalas_snr = temp_scan['brain_SNR']
