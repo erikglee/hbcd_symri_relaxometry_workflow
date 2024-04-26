@@ -218,6 +218,7 @@ def qalas_selection_with_qu_motion(downloaded_jsons):
             content = [content]
         for temp_scan in content:
             if temp_scan['SeriesType'] == 'qMRI':
+                sys.stdout.write('         qMRI present in current json: {}\n'.format(temp_json))
                 #Be sure that at least the QU_motion, aqc_motion and HBCD_compliant fields are there
                 if (type(temp_scan['QU_motion']) == type(None)) or (type(temp_scan['aqc_motion']) == type(None)) or (type(temp_scan['HBCD_compliant']) == type(None)) or (type(temp_scan['brain_SNR']) == type(None)):
                     sys.stdout.write('   Processing will either be attempted later or without QU_motion: Either QU_motion, aqc_motion, or HBCD_compliant status is missing for one scan within {}'.format(temp_json))
