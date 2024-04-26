@@ -207,11 +207,6 @@ def qalas_selection_with_qu_motion(downloaded_jsons):
     best_qalas_snr = -1*np.inf
     for temp_json in downloaded_jsons:
         print('         For loop on jsons')
-        sys.stdout.write('            QU: {}\n'.format(temp_scan['QU_motion']))
-        sys.stdout.write('            Compliant: {}\n'.format(temp_scan['HBCD_compliant']))
-        sys.stdout.write('            AQ: {}\n'.format(temp_scan['aqc_motion']))
-        sys.stdout.write('            AQ: {}\n'.format(temp_scan['brain_SNR']))
-        sys.stdout.flush()
         with open(temp_json, 'r') as f:
             content = json.load(f)[0]
         if type(content) == dict:
@@ -219,6 +214,11 @@ def qalas_selection_with_qu_motion(downloaded_jsons):
         for temp_scan in content:
             if temp_scan['SeriesType'] == 'qMRI':
                 sys.stdout.write('         qMRI present in current json: {}\n'.format(temp_json))
+                sys.stdout.write('            QU: {}\n'.format(temp_scan['QU_motion']))
+                sys.stdout.write('            Compliant: {}\n'.format(temp_scan['HBCD_compliant']))
+                sys.stdout.write('            AQ: {}\n'.format(temp_scan['aqc_motion']))
+                sys.stdout.write('            AQ: {}\n'.format(temp_scan['brain_SNR']))
+                sys.stdout.flush()
                 #Be sure that at least the QU_motion, aqc_motion and HBCD_compliant fields are there
                 if (type(temp_scan['QU_motion']) == type(None)) or (type(temp_scan['aqc_motion']) == type(None)) or (type(temp_scan['HBCD_compliant']) == type(None)) or (type(temp_scan['brain_SNR']) == type(None)):
                     sys.stdout.write('   Processing will either be attempted later or without QU_motion: Either QU_motion, aqc_motion, or HBCD_compliant status is missing for one scan within {}'.format(temp_json))
