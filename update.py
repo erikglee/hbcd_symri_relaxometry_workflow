@@ -28,7 +28,7 @@ def update_bids_json(json_file, supplemental_info = None):
     '''
     
     fields_to_remove = ['EchoTime', 'RepetitionTime', 'FlipAngle']
-    details = {"ImageDescription" : "This is a synthetic image derived from a QALAS scan distributed by SyMRI.\\nQunatitative T1, T2, and PD values are estimated from the QALAS scan using numerical algorithms provided by SyMRI.",
+    details = {"ImageDescription" : "This is a synthetic image derived from a QALAS scan distributed by SyMRI.\\nQunatitative T1, T2, and PD values are estimated from the QALAS scan using numerical algorithms provided by SyMRI. B1 values are estimated by SyMRI.",
                          "ReferenceDOIs" : ["https://doi.org/10.1016/j.mri.2019.08.031"]}
     
     with open(json_file, 'r') as f:
@@ -199,6 +199,94 @@ def update_best_qalas_info_dict(scan_dict, json_name):
     best_qalas_info['archive_to_download'] = json_name.replace('_mripcqc_info.json', '.tar.gz').split('/')[-1]
     
     return best_qalas_info
+
+def qalas_selection_with_qu_motion(downloaded_jsons):
+    best_qalas_info = None
+    best_qalas_qu_score = np.inf
+    best_qalas_aqc_score = np.inf
+    best_qalas_snr = -1*np.inf
+    for temp_json in downloaded_jsons:
+        print('         For loop on jsons')
+        with open(temp_json, 'r') as f:
+            content = json.load(f)[0]
+        if type(content) == dict:
+            content = [content]
+        for temp_scan in content:
+            if temp_scan['SeriesType'] == 'qMRI':
+                sys.stdout.write('         qMRI present in current json: {}\n'.format(temp_json))
+                sys.stdout.write('            QU: {}\n'.format(temp_scan['QU_motion']))
+                sys.stdout.write('            Compliant: {}\n'.format(temp_scan['HBCD_compliant']))
+                sys.stdout.write('            AQ: {}\n'.format(temp_scan['aqc_motion']))
+                sys.stdout.write('            brain_SNR: {}\n'.format(temp_scan['brain_SNR']))
+                sys.stdout.flush()
+                #Be sure that at least the QU_motion, aqc_motion and HBCD_compliant fields are there
+                if (type(temp_scan['QU_motion']) == type(None)) or (type(temp_scan['aqc_motion']) == type(None)) or (type(temp_scan['HBCD_compliant']) == type(None)) or (type(temp_scan['brain_SNR']) == type(None)):
+                    sys.stdout.write('   Processing will either be attempted later or without QU_motion: Either QU_motion, aqc_motion, or HBCD_compliant status is missing for one scan within {}'.format(temp_json))
+                    sys.stdout.flush()
+                    return None, True
+                try:
+                    if temp_scan['HBCD_compliant'] == 'Yes':
+                        if temp_scan['QU_motion'] < best_qalas_qu_score:
+                            best_qalas_qu_score = temp_scan['QU_motion']
+                            best_qalas_aqc_score = temp_scan['aqc_motion']
+                            best_qalas_snr = temp_scan['brain_SNR']
+                            best_qalas_info = update_best_qalas_info_dict(temp_scan, temp_json)
+                        elif temp_scan['QU_motion'] == best_qalas_qu_score:
+                            if temp_scan['aqc_motion'] < best_qalas_aqc_score:
+                                best_qalas_qu_score = temp_scan['QU_motion']
+                                best_qalas_aqc_score = temp_scan['aqc_motion']
+                                best_qalas_snr = temp_scan['brain_SNR']
+                                best_qalas_info = update_best_qalas_info_dict(temp_scan, temp_json)
+                            elif temp_scan['aqc_motion'] == best_qalas_aqc_score:
+                                if temp_scan['brain_SNR'] > best_qalas_snr:
+                                    best_qalas_qu_score = temp_scan['QU_motion']
+                                    best_qalas_aqc_score = temp_scan['aqc_motion']
+                                    best_qalas_snr = temp_scan['brain_SNR']
+                                    best_qalas_info = update_best_qalas_info_dict(temp_scan, temp_json)    
+                except Exception as err:
+                    print(f"Found the following: {err=}, {type(err)=}")
+                    print('Identified while trying to evaluate the following JSON. Likely one or more QC value is missing {}'.format(temp_json.split('/')[-1]))
+                    return None, True
+                
+                            
+    return best_qalas_info, False
+
+
+def qalas_selection_without_qu_motion(downloaded_jsons):
+    best_qalas_info = None
+    best_qalas_aqc_score = np.inf
+    best_qalas_snr = -1*np.inf
+    for temp_json in downloaded_jsons:
+        with open(temp_json, 'r') as f:
+            content = json.load(f)[0]
+        if type(content) == dict:
+            content = [content]
+        for temp_scan in content:
+            if temp_scan['SeriesType'] == 'qMRI':
+                #Be sure that at least the QU_motion, aqc_motion and HBCD_compliant fields are there
+                if (type(temp_scan['aqc_motion']) == type(None)) or (type(temp_scan['HBCD_compliant']) == type(None)) or (type(temp_scan['brain_SNR']) == type(None)):
+                    sys.stdout.write('   Processing will either be attempted later or without QU_motion: Either QU_motion, aqc_motion, or HBCD_compliant status is missing for one scan within {}'.format(temp_json))
+                    sys.stdout.flush()
+                    return None, True
+                try:
+                    sys.stdout.flush()
+                    if temp_scan['HBCD_compliant'] == 'Yes':
+                        if temp_scan['aqc_motion'] < best_qalas_aqc_score:
+                            best_qalas_aqc_score = temp_scan['aqc_motion']
+                            best_qalas_snr = temp_scan['brain_SNR']
+                            best_qalas_info = update_best_qalas_info_dict(temp_scan, temp_json)
+                        elif temp_scan['aqc_motion'] == best_qalas_aqc_score:
+                            if temp_scan['brain_SNR'] > best_qalas_snr:
+                                best_qalas_aqc_score = temp_scan['aqc_motion']
+                                best_qalas_snr = temp_scan['brain_SNR']
+                                best_qalas_info = update_best_qalas_info_dict(temp_scan, temp_json)    
+                except Exception as err:
+                    print(f"Found the following: {err=}, {type(err)=}")
+                    print('Identified while trying to evaluate the following JSON. Likely one or more QC value is missing {}'.format(temp_json.split('/')[-1]))
+                    return None, True
+                
+                            
+    return best_qalas_info, False
 
 def unpack_qalas_from_targz(tar_path, output_path, SeriesInstanceUID = None, StudyInstanceUID = None):
     '''Function unpacks dicom files from tar and
@@ -374,7 +462,7 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     sys.stdout.write('   dcm_maps_path: {}\n'.format(dcm_maps_path))
     sys.stdout.flush()
     time.sleep(10)
-    if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 6:
+    if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 7:
 
         try:
             dcm2bids_command = dcm2bids_base_command.format(dcm2bids_executable_path=dcm2bids_executable_path, dcm_maps_path=dcm_maps_path, dcm2bids_config_path=dcm2bids_config_path, tmp_bids_dir=tmp_bids_dir, subject_label=subject_label, session_label=session_label)
@@ -511,7 +599,12 @@ def main():
     3. Iterate through all subjects/sessions that need to be processed. For subjects/
         sessions that have a QALAS scan and are ready to be processed, download the
         archive containing the best QALAS scan, unpack the archive, and identify
-        the dicom folder that contains the QALAS scan.
+        the dicom folder that contains the QALAS scan. The best QALAS is determined
+        based on the following ranking heirarchy (1) HBCD_Compliant, (2) QU_motion,
+        (3) aqc_motion, (4) brain_SNR. If QU_motion is missing from one or more QALAS
+        scans, then QU_motion will be excluded from the file comparison procedure. If
+        one or more value (besides QU_motion) is missing for one or more QALAS scans,
+        processing will not occur.
     4. Run the SyMRI container on the QALAS dicom folder to generate relaxometry maps.
     5. Run dcm2bids on the resulting dicoms to convert them to BIDS derivatives.
         Also copy over a copy of the log file generated by SyMRI during processing. Further,
@@ -719,32 +812,13 @@ def main():
         sys.stdout.write('   Grabbed the following jsons for current subject/session: {}\n'.format(jsons_dict[temp_session]))
         sys.stdout.flush()
         
-        best_qalas_info = None
-        best_qalas_qu_score = np.inf
-        best_qalas_aqc_score = np.inf
-        qc_or_other_missing = False
-        for temp_json in downloaded_jsons:
-            with open(temp_json, 'r') as f:
-                content = json.load(f)[0]
-            if type(content) == dict:
-                content = [content]
-            for temp_scan in content:
-                if temp_scan['SeriesType'] == 'qMRI':
-                    if (type(temp_scan['QU_motion']) == type(None)) or (type(temp_scan['aqc_motion']) == type(None)) or (type(temp_scan['Completed']) == type(None)):
-                        sys.stdout.write('   Processing will be attempted later: Either QU_motion, aqc_motion, or Completed status is missing for one scan within {}'.format(temp_json))
-                        sys.stdout.flush()
-                        qc_or_other_missing = True
-                        continue
-                    if temp_scan['Completed'] == 1:
-                        if temp_scan['QU_motion'] < best_qalas_qu_score:
-                            best_qalas_qu_score = temp_scan['QU_motion']
-                            best_qalas_aqc_score = temp_scan['aqc_motion']
-                            best_qalas_info = update_best_qalas_info_dict(temp_scan, temp_json)
-                        elif temp_scan['QU_motion'] == best_qalas_qu_score:
-                            if temp_scan['aqc_motion'] < best_qalas_aqc_score:
-                                best_qalas_qu_score = temp_scan['QU_motion']
-                                best_qalas_aqc_score = temp_scan['aqc_motion']
-                                best_qalas_info = update_best_qalas_info_dict(temp_scan, temp_json)
+        #Evaluate the jsons to find the best QALAS scan
+        print('   First evaluating runs based on HBCD_Compliant, QU_motion, aqc_motion, and brain_SNR.')
+        best_qalas_info, qc_or_other_missing = qalas_selection_with_qu_motion(downloaded_jsons)
+        if type(best_qalas_info) == type(None):
+            print('   Instead evaluating runs based only on HBCD_Compliant, aqc_motion, and brain_SNR.')
+            best_qalas_info, qc_or_other_missing = qalas_selection_without_qu_motion(downloaded_jsons)
+
                                 
         if type(best_qalas_info) != type(None):
 
@@ -793,7 +867,7 @@ def main():
                                             symri_global,
                                             dcm2bids_config)
             
-            if output_info['num_niftis_generated'] != 3:
+            if output_info['num_niftis_generated'] != 4:
                 no_niftis_to_upload.append(temp_session)
                 sys.stdout.write('   Participant didnt have any data to upload... saving info for debugging.')
                 sys.stdout.flush()
