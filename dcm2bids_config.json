@@ -26,6 +26,15 @@
 			"ImageType": ["DERIVED", "PRIMARY", "QMAP", "PD"],
 			"SeriesDescription": "PD*"
 		}
+	},
+	{
+		"dataType": "anat",
+		"modalityLabel": "TB1map",
+		"customLabels": "acq-QALAS",
+		"criteria": {
+			"ImageType": ["DERIVED", "PRIMARY", "QMAP", "B1"],
+			"SeriesDescription": "B1*"
+		}
 	}
 	
 	

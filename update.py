@@ -28,7 +28,7 @@ def update_bids_json(json_file, supplemental_info = None):
     '''
     
     fields_to_remove = ['EchoTime', 'RepetitionTime', 'FlipAngle']
-    details = {"ImageDescription" : "This is a synthetic image derived from a QALAS scan distributed by SyMRI.\\nQunatitative T1, T2, and PD values are estimated from the QALAS scan using numerical algorithms provided by SyMRI.",
+    details = {"ImageDescription" : "This is a synthetic image derived from a QALAS scan distributed by SyMRI.\\nQunatitative T1, T2, and PD values are estimated from the QALAS scan using numerical algorithms provided by SyMRI. B1 values are estimated by SyMRI.",
                          "ReferenceDOIs" : ["https://doi.org/10.1016/j.mri.2019.08.031"]}
     
     with open(json_file, 'r') as f:
