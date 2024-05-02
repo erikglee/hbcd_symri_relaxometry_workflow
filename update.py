@@ -462,7 +462,7 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     sys.stdout.write('   dcm_maps_path: {}\n'.format(dcm_maps_path))
     sys.stdout.flush()
     time.sleep(10)
-    if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 6:
+    if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 7:
 
         try:
             dcm2bids_command = dcm2bids_base_command.format(dcm2bids_executable_path=dcm2bids_executable_path, dcm_maps_path=dcm_maps_path, dcm2bids_config_path=dcm2bids_config_path, tmp_bids_dir=tmp_bids_dir, subject_label=subject_label, session_label=session_label)
@@ -867,7 +867,7 @@ def main():
                                             symri_global,
                                             dcm2bids_config)
             
-            if output_info['num_niftis_generated'] != 3:
+            if output_info['num_niftis_generated'] != 4:
                 no_niftis_to_upload.append(temp_session)
                 sys.stdout.write('   Participant didnt have any data to upload... saving info for debugging.')
                 sys.stdout.flush()
