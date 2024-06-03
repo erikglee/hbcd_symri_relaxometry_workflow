@@ -307,6 +307,11 @@ def unpack_qalas_from_targz(tar_path, output_path, SeriesInstanceUID = None, Stu
     If the user specifies a SeriesInstanceUID, or 
     StudyInstanceUID, then only DICOMS that match
     these values will be returned.
+
+    If an acquisition is found that is associated
+    with a philips examcard that is known to have
+    acquistion issues, then both the outputs of this
+    function will be None.
     
     '''
     
@@ -320,7 +325,12 @@ def unpack_qalas_from_targz(tar_path, output_path, SeriesInstanceUID = None, Stu
     qalas_folders = []
     supplemental_infos = []
 
-
+    bad_philips_exam_card_values = [''
+                                    'HBCD_ACH_v11b_20230511_CURRENT',
+                                    'HBCD_ACH_v11g_20230803',
+                                    'HBCD_MR7700_v11g_20230803',
+                                    'HBCD_R2D2_v11g_20230804',
+                                    'HBCD_ACH_v11g_20230802']
 
     sub_dirs = list(set(find_terminal_folders(tarf_folder)))
     for temp_dir in sub_dirs:
@@ -329,6 +339,12 @@ def unpack_qalas_from_targz(tar_path, output_path, SeriesInstanceUID = None, Stu
             for num in range(min(5, len(files))):
                 tmp_dcm = dcmread(files[num])
                 if ('QALAS' in tmp_dcm[0x0008, 0x103e]._value.upper()) or ('MAGIC' in tmp_dcm[0x0008, 0x103e]._value.upper()):
+
+                    #Skip processing if the it examcard is associated with
+                    #an early Philips acquisition before protocol was updated
+                    if 'Philips' in tmp_dcm[0x0008, 0x0070]._value:
+                        if tmp_dcm[0x2001, 0x10C8]._value in bad_philips_exam_card_values:
+                            None, None
 
                     #If the user specified a series instance uid, only
                     #use if this matches what is observed in the dicom
@@ -730,6 +746,7 @@ def main():
         qalas_in_qc_but_not_archive = reproc_log_data['qalas_in_qc_but_not_archive']
         no_niftis_to_upload = reproc_log_data['no_niftis_to_upload']
         missing_archive = reproc_log_data['missing_archive']
+        bad_philips = reproc_log_data['bad_philips']
     else:
         reproc_log_data = {}
         to_reprocess = []
@@ -737,9 +754,10 @@ def main():
         qalas_in_qc_but_not_archive = []
         no_niftis_to_upload = []
         missing_archive = []
+        bad_philips = []
 
     reprocess_attempted = []
-    sessions_to_skip = new_archive_available + qalas_in_qc_but_not_archive + no_niftis_to_upload + missing_archive
+    sessions_to_skip = new_archive_available + qalas_in_qc_but_not_archive + no_niftis_to_upload + missing_archive + bad_philips
     for temp_session in to_reprocess:
         if temp_session in sessions_to_skip:
             sessions_to_skip.remove(temp_session)
@@ -846,7 +864,12 @@ def main():
                 os.makedirs(unpack_dir)
             tar_path = os.path.join(dicom_base_dir, archives_with_qalas_to_process[temp_session]['archive_to_download'])
             qalas_folders, supplemental_infos = unpack_qalas_from_targz(tar_path, unpack_dir, SeriesInstanceUID = archives_with_qalas_to_process[temp_session]['SeriesInstanceUID'], StudyInstanceUID = archives_with_qalas_to_process[temp_session]['StudyInstanceUID'])    
-            if len(qalas_folders) == 0:
+            if type(qalas_folders) == type(None):
+                sys.stdout.write('   Current subject represents old Philips data that we dont want to attempt processing on: {}\n'.format(temp_session))
+                sys.stdout.flush()
+                bad_philips.append(temp_session)
+                continue
+            elif len(qalas_folders) == 0:
                 sys.stdout.write('   Found QALAS in QC file but unable to find QALAS scan within archive. Skipping subject archive and adding them to reprocessing log.\n')
                 sys.stdout.flush()
                 qalas_in_qc_but_not_archive.append(temp_session)
@@ -936,6 +959,7 @@ def main():
     reproc_log_data['qalas_in_qc_but_not_archive'] = list(set(qalas_in_qc_but_not_archive))
     reproc_log_data['no_niftis_to_upload'] = list(set(no_niftis_to_upload))
     reproc_log_data['missing_archive'] = list(set(missing_archive))
+    reproc_log_data['bad_philips'] = list(set(bad_philips))
 
     with open(reproc_log_path, 'w') as f:
         f.write(json.dumps(reproc_log_data, indent = 5))
