@@ -342,7 +342,11 @@ def unpack_qalas_from_targz(tar_path, output_path, SeriesInstanceUID = None, Stu
 
                     #Skip processing if the it examcard is associated with
                     #an early Philips acquisition before protocol was updated
+                    sys.stdout.write('Manu name: {}'.format(tmp_dcm[0x0008, 0x0070]._value))
+
                     if 'Philips' in tmp_dcm[0x0008, 0x0070]._value:
+                        sys.stdout.write('Examcard name: {}'.format(tmp_dcm[0x2001, 0x10C8]._value))
+                        sys.stdout.flush()
                         if tmp_dcm[0x2001, 0x10C8]._value in bad_philips_exam_card_values:
                             None, None
 
