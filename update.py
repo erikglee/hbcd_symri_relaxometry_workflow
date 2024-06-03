@@ -867,7 +867,7 @@ def main():
                                             symri_global,
                                             dcm2bids_config)
             
-            if output_info['num_niftis_generated'] != 4:
+            if output_info['num_niftis_generated'] < 3:
                 no_niftis_to_upload.append(temp_session)
                 sys.stdout.write('   Participant didnt have any data to upload... saving info for debugging.')
                 sys.stdout.flush()
