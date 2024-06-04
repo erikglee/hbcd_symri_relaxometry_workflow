@@ -342,13 +342,10 @@ def unpack_qalas_from_targz(tar_path, output_path, SeriesInstanceUID = None, Stu
 
                     #Skip processing if the it examcard is associated with
                     #an early Philips acquisition before protocol was updated
-                    sys.stdout.write('Manu name: {}\n'.format(tmp_dcm[0x0008, 0x0070]._value))
-
                     if 'Philips' in tmp_dcm[0x0008, 0x0070]._value:
-                        sys.stdout.write('Examcard name: {}\n'.format(tmp_dcm[0x2001, 0x10C8]._value))
-                        sys.stdout.flush()
                         if tmp_dcm[0x2001, 0x10C8]._value in bad_philips_exam_card_values:
-                            sys.stdout.write('Excluded examcard name found. Name: {}\n'.format(tmp_dcm[0x2001, 0x10C8]._value))
+                            sys.stdout.write('   Excluded examcard name found. Name: {}\n'.format(tmp_dcm[0x2001, 0x10C8]._value))
+                            sys.stdout.flush()
                             return None, None
 
                     #If the user specified a series instance uid, only
@@ -576,7 +573,7 @@ def push_to_s3(base_bids_dir, subject_label, bucket_name = None,
     )
     
     try:
-        sys.stdout.write('Uploading data for sub-{}\n'.format(subject_label))
+        sys.stdout.write('\n   Uploading data for sub-{}\n'.format(subject_label))
         sys.stdout.flush()
         os.chdir(base_bids_dir)
         files = glob.glob('sub*/ses*/anat/*')
