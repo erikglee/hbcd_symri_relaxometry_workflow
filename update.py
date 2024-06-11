@@ -690,6 +690,7 @@ def main():
     parser.add_argument('--custom_loris_bucket_name', help="The name of the bucket where results will be stored.", type=str, default='midb-hbcd-main-pr')
     parser.add_argument('--keep_work_dirs', help="If used, local copies of dicom/niftis generated will be saved. Deletion may be required for subsequent processing in specific cases.", action='store_true')
     parser.add_argument('--dicom_prefix', help="Prefix to include in front of subject path when searching for dicom archives.", type=str, default='')
+    parser.add_argument('--custom_work_dir', help="If provided, the working directory will be here instead of under base_directory_for_proc (where other local processing info is kept).", type=str)
     args = parser.parse_args()
 
 
@@ -720,6 +721,11 @@ def main():
             jsons_dict[file_split] = [temp_file]
         else:
             jsons_dict[file_split].append(temp_file)
+
+    #Set working directory
+    top_working_dir = args.base_directory_for_proc
+    if args.custom_work_dir:
+        top_working_dir = args.custom_work_dir
 
 
     #See if a tracking log exists and if so load it. Tracking
@@ -813,7 +819,7 @@ def main():
     #Third iterate through all sessions that need to be processed. #First,
     #download the QC JSONS for the sessions. 
     archives_with_qalas_to_process = {}
-    working_base_dir = os.path.join(args.base_directory_for_proc, 'working_dir')
+    working_base_dir = os.path.join(top_working_dir, 'working_dir')
     for temp_session in sessions_to_evaluate.keys():
 
         sys.stdout.write('Attempting processing for: {}\n'.format(temp_session))
@@ -940,7 +946,6 @@ def main():
 
         #Clean up the session working directory
         if args.keep_work_dirs == False:
-            os.chdir(args.base_directory_for_proc)
             shutil.rmtree(session_base_dir)
             sys.stdout.write('   Removing working directory at: {}\n\n\n'.format(session_base_dir))
             sys.stdout.flush()
