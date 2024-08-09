@@ -32,7 +32,7 @@ def build_parser():
     parser.add_argument('--exclude_t1map', help="If used, then the T1 map will not be included in the BIDS derivatives.", action='store_true')
     parser.add_argument('--exclude_t2map', help="If used, then the T2 map will not be included in the BIDS derivatives.", action='store_true')
     parser.add_argument('--exclude_pdmap', help="If used, then the PD map will not be included in the BIDS derivatives.", action='store_true')
-    parser.add_argument('--exclude_b1map', help="If used, then the B1 map will not be included in the BIDS derivatives.", action='store_true')
+    parser.add_argument('--exclude_tb1map', help="If used, then the TB1 map will not be included in the BIDS derivatives.", action='store_true')
     parser.add_argument('--exclude_weighted_images', help="If used, then the T1w/T2w images will not be included in the BIDS derivatives.", action='store_true')
 
     return parser
@@ -977,7 +977,7 @@ def main():
                                             exclude_t1map = args.exclude_t1map,
                                             exclude_t2map = args.exclude_t2map,
                                             exclude_pdmap = args.exclude_pdmap,
-                                            exclude_tb1map = args.exclude_b1map)
+                                            exclude_tb1map = args.exclude_tb1map)
             
             if output_info['num_niftis_generated'] < 3:
                 no_niftis_to_upload.append(temp_session)
