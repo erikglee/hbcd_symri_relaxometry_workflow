@@ -44,11 +44,11 @@ def build_parser():
 def calc_synth_t1w_t2w(t1map_path, t2map_path, pdmap_path, output_folder, subject_name, session_name):
     
     print('   Calculating synthetic T1w and T2w images from QALAS maps')
-    t1_tr = 10*1000
+    t1_tr = 2.4*1000
     t1_te = 0.00224*1000
 
-    t2_tr = 10*1000
-    t2_te = 0.1*1000
+    t2_tr = 4.5*1000
+    t2_te = 0.564*1000
 
     temp_t1_img = nib.load(t1map_path)
     temp_t1_data = temp_t1_img.get_fdata()
@@ -585,7 +585,7 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         
         if len(t1map_path)*len(t2map_path)*len(pdmap_path)*len(tb1map_path) != 1:
             raise NameError('Error: Expected one T1map, T2map, PDmap, and B1map file at this stage of processing.')
-        _ = calc_synth_t1w_t2w(t1map_path[0], t2map_path[0], pdmap_path[0], session_anat_folder, subject_label, session_label)
+        _ = calc_synth_t1w_t2w(t1map_path[0], t2map_path[0], pdmap_path[0], session_anat_folder, 'sub-' + subject_label, 'ses-' + session_label)
         
         #Optionally remove any of the T1map, T2map, PDmap, and B1map files
         if exclude_t1map == True:
