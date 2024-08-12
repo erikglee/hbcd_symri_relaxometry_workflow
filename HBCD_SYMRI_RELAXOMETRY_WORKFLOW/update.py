@@ -581,6 +581,8 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         t2map_path = glob.glob(os.path.join(session_anat_folder, '*T2map.nii.gz'))
         pdmap_path = glob.glob(os.path.join(session_anat_folder, '*PDmap.nii.gz'))
         tb1map_path = glob.glob(os.path.join(session_anat_folder, '*TB1map.nii.gz'))
+        
+        
         if len(t1map_path)*len(t2map_path)*len(pdmap_path)*len(tb1map_path) != 1:
             raise NameError('Error: Expected one T1map, T2map, PDmap, and B1map file at this stage of processing.')
         _ = calc_synth_t1w_t2w(t1map_path[0], t2map_path[0], pdmap_path[0], session_anat_folder, subject_label, session_label)
@@ -979,7 +981,7 @@ def main():
                                             exclude_pdmap = args.exclude_pdmap,
                                             exclude_tb1map = args.exclude_tb1map)
             
-            if output_info['num_niftis_generated'] < 3:
+            if output_info['num_niftis_generated'] == 0:
                 no_niftis_to_upload.append(temp_session)
                 sys.stdout.write('   Participant didnt have any data to upload... saving info for debugging.')
                 sys.stdout.flush()
