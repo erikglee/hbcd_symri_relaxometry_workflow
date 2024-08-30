@@ -44,11 +44,11 @@ def build_parser():
 def calc_synth_t1w_t2w(t1map_path, t2map_path, pdmap_path, output_folder, subject_name, session_name):
     
     print('   Calculating synthetic T1w and T2w images from QALAS maps')
-    t1_tr = 2.4*1000
+    t1_tr = 10*1000
     t1_te = 0.00224*1000
 
-    t2_tr = 4.5*1000
-    t2_te = 0.564*1000
+    t2_tr = 10*1000
+    t2_te = 0.1*1000
 
     temp_t1_img = nib.load(t1map_path)
     temp_t1_data = temp_t1_img.get_fdata()
@@ -57,6 +57,9 @@ def calc_synth_t1w_t2w(t1map_path, t2map_path, pdmap_path, output_folder, subjec
     
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        #t1w = temp_pd_data*(1.0 - np.exp(-t1_tr/temp_t1_data))*np.exp(-t1_te/temp_t2_data)
+                
+        #Using Spin Echo Equation
         t1w = temp_pd_data*(1.0 - np.exp(-t1_tr/temp_t1_data))*np.exp(-t1_te/temp_t2_data)
         t2w = temp_pd_data*(1.0 - np.exp(-t2_tr/temp_t1_data))*np.exp(-t2_te/temp_t2_data)
             
