@@ -33,7 +33,8 @@ def build_parser():
     parser.add_argument('--exclude_t2map', help="If used, then the T2 map will not be included in the BIDS derivatives.", action='store_true')
     parser.add_argument('--exclude_pdmap', help="If used, then the PD map will not be included in the BIDS derivatives.", action='store_true')
     parser.add_argument('--exclude_tb1map', help="If used, then the TB1 map will not be included in the BIDS derivatives.", action='store_true')
-    parser.add_argument('--exclude_weighted_images', help="If used, then the T1w/T2w images will not be included in the BIDS derivatives.", action='store_true')
+    parser.add_argument('--exclude_t1w', help="If used, then the synthetic T1w image will not be included in the BIDS derivatives.", action='store_true')
+    parser.add_argument('--exclude_t2w', help="If used, then the synthetic T2w image will not be included in the BIDS derivatives.", action='store_true')
 
     return parser
 
@@ -479,7 +480,9 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
                        exclude_t1map = False,
                        exclude_t2map = False,
                        exclude_pdmap = False,
-                       exclude_tb1map = False):
+                       exclude_tb1map = False,
+                       exclude_t1w = False,
+                       exclude_t2w = False):
     
     '''Function to unpack qalas from dcm, convert to maps then bids
     
@@ -551,7 +554,7 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     sys.stdout.write('   dcm_maps_path: {}\n'.format(dcm_maps_path))
     sys.stdout.flush()
     time.sleep(10)
-    if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 7:
+    if len(glob.glob(os.path.join(dcm_maps_path, '*'))) >= 7:
 
         try:
             dcm2bids_command = dcm2bids_base_command.format(dcm2bids_executable_path=dcm2bids_executable_path, dcm_maps_path=dcm_maps_path, dcm2bids_config_path=dcm2bids_config_path, tmp_bids_dir=tmp_bids_dir, subject_label=subject_label, session_label=session_label)
@@ -570,10 +573,26 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         output_info['symri_conversion_error'] = 0
         output_info['num_niftis_generated'] += len(glob.glob(os.path.join(tmp_bids_dir, 'sub*','ses*','anat','*.nii.gz')))
 
-        #Update the metadata in the json files
-        json_files = glob.glob(os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat', '*json'))
+        #Update the metadata in the MAP json files
+        json_files = glob.glob(os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat', '*map.json'))
         for temp_json_file in json_files:
             update_bids_json(temp_json_file, supplemental_info=supplemental_infos[0])
+
+        #Update the metadata in the Synthetic Weighted json files
+        json_files = glob.glob(os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat', '*w.json'))
+        for temp_json_file in json_files:
+            temp_supplemental_info_dict = supplemental_infos[0].copy()
+            if 'T1w' in temp_json_file.split('/')[-1]:
+                temp_supplemental_info_dict['SyntheticImageDetails'] = {'SyntheticImageType' : 'T1w',
+                                                                        'EchoTime' : 0.01,
+                                                                        'RepetitionTime' : 0.65,
+                                                                        'TimeUnits' : 'seconds'}
+            elif 'T2w' in temp_json_file.split('/')[-1]:
+                temp_supplemental_info_dict['SyntheticImageDetails'] = {'SyntheticImageType' : 'T2w',
+                                                                        'EchoTime' : 0.1,
+                                                                        'RepetitionTime' : 5,
+                                                                        'TimeUnits' : 'seconds'}
+            update_bids_json(temp_json_file, supplemental_info=temp_supplemental_info_dict)
 
         sys.stdout.write('   dcm2bids Command:\n')
         sys.stdout.write('      ' + dcm2bids_command + '\n\n')
@@ -584,11 +603,9 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         t2map_path = glob.glob(os.path.join(session_anat_folder, '*T2map.nii.gz'))
         pdmap_path = glob.glob(os.path.join(session_anat_folder, '*PDmap.nii.gz'))
         tb1map_path = glob.glob(os.path.join(session_anat_folder, '*TB1map.nii.gz'))
+        t1w_path = glob.glob(os.path.join(session_anat_folder, '*T1w.nii.gz'))
+        t2w_path = glob.glob(os.path.join(session_anat_folder, '*T2w.nii.gz'))
         
-        
-        if len(t1map_path)*len(t2map_path)*len(pdmap_path)*len(tb1map_path) != 1:
-            raise NameError('Error: Expected one T1map, T2map, PDmap, and B1map file at this stage of processing.')
-        _ = calc_synth_t1w_t2w(t1map_path[0], t2map_path[0], pdmap_path[0], session_anat_folder, 'sub-' + subject_label, 'ses-' + session_label)
         
         #Optionally remove any of the T1map, T2map, PDmap, and B1map files
         if exclude_t1map == True:
@@ -603,6 +620,12 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         if exclude_tb1map == True:
             os.remove(tb1map_path[0])
             os.remove(tb1map_path[0].replace('.nii.gz', '.json'))
+        if exclude_t1w == True:
+            os.remove(t1w_path[0])
+            os.remove(t1w_path[0].replace('.nii.gz', '.json'))
+        if exclude_t2w == True:
+            os.remove(t2w_path[0])
+            os.remove(t2w_path[0].replace('.nii.gz', '.json'))
 
 
     else:
@@ -982,7 +1005,9 @@ def main():
                                             exclude_t1map = args.exclude_t1map,
                                             exclude_t2map = args.exclude_t2map,
                                             exclude_pdmap = args.exclude_pdmap,
-                                            exclude_tb1map = args.exclude_tb1map)
+                                            exclude_tb1map = args.exclude_tb1map,
+                                            exclude_t1w = args.exclude_t1w,
+                                            exclude_t2w = args.exclude_t2w)
             
             if output_info['num_niftis_generated'] == 0:
                 no_niftis_to_upload.append(temp_session)
