@@ -6,7 +6,7 @@
 		"customLabels": "acq-QALAS",
 		"criteria": {
 			"ImageType": ["DERIVED", "PRIMARY", "QMAP", "T1"],
-			"SeriesDescription": "T1*"
+			"SeriesDescription": "T1 *"
 		}
 	},
 	{
@@ -15,7 +15,25 @@
 		"customLabels": "acq-QALAS",
 		"criteria": {
 			"ImageType": ["DERIVED", "PRIMARY", "QMAP", "T2"],
-			"SeriesDescription": "T2*"
+			"SeriesDescription": "T2 *"
+		}
+	},
+	{
+		"dataType": "anat",
+		"modalityLabel": "T1w",
+		"customLabels": "acq-QALAS",
+		"criteria": {
+			"ImageType": ["DERIVED", "PRIMARY", "T1", "SYNTHETIC"],
+			"SeriesDescription": "T1W *"
+		}
+	},
+	{
+		"dataType": "anat",
+		"modalityLabel": "T2w",
+		"customLabels": "acq-QALAS",
+		"criteria": {
+			"ImageType": ["DERIVED", "PRIMARY", "T2", "SYNTHETIC"],
+			"SeriesDescription": "T2W *"
 		}
 	},
 	{
