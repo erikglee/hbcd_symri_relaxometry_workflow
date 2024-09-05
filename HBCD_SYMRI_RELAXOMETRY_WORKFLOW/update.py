@@ -8,7 +8,75 @@ from pathlib import Path
 import inspect
 import argparse
 import time
+import warnings
+import nibabel as nib
 
+
+
+def build_parser():
+
+    parser = argparse.ArgumentParser(description="Workflow to Make Relaxometry Maps from QALAS Images Using SyMRI Container.")
+    parser.add_argument("dicom_config_path", help="Path to dicom s3 config file.")
+    parser.add_argument("bids_config_path", help="Path to bids s3 config file.")
+    parser.add_argument("symri_container_path", help="Path to SyMRI container.")
+    parser.add_argument("base_directory_for_proc", help="Path where processing will occur and where logs will be stored.")
+    parser.add_argument('--custom_symri_layout', help="Path to a non-default SyMRI layout file.", type=str)
+    parser.add_argument('--custom_global_path', help="Path to a non-default SyMRI global file.", type=str)
+    parser.add_argument('--custom_dcm2bids_config_path', help="Path to a non-default dcm2bids config file.", type=str)
+    parser.add_argument('--custom_processing_batch_size', help="The number of dicom archives that you want to attempt to process.", type=int, default=20)
+    parser.add_argument('--custom_dicom_bucket_name', help="The name of the bucket to grab dicoms from.", type=str, default='hbcd-dicoms-main-study')
+    parser.add_argument('--custom_bids_bucket_name', help="The name of the bucket where results will be stored.", type=str, default='midb-hbcd-main-pr')
+    parser.add_argument('--keep_work_dirs', help="If used, local copies of dicom/niftis generated will be saved. Deletion may be required for subsequent processing in specific cases.", action='store_true')
+    parser.add_argument('--dicom_prefix', help="Prefix to include in front of subject path when searching for dicom archives.", type=str, default='')
+    parser.add_argument('--custom_work_dir', help="If provided, the working directory will be here instead of under base_directory_for_proc (where other local processing info is kept).", type=str)
+    parser.add_argument('--exclude_t1map', help="If used, then the T1 map will not be included in the BIDS derivatives.", action='store_true')
+    parser.add_argument('--exclude_t2map', help="If used, then the T2 map will not be included in the BIDS derivatives.", action='store_true')
+    parser.add_argument('--exclude_pdmap', help="If used, then the PD map will not be included in the BIDS derivatives.", action='store_true')
+    parser.add_argument('--exclude_tb1map', help="If used, then the TB1 map will not be included in the BIDS derivatives.", action='store_true')
+    parser.add_argument('--exclude_t1w', help="If used, then the synthetic T1w image will not be included in the BIDS derivatives.", action='store_true')
+    parser.add_argument('--exclude_t2w', help="If used, then the synthetic T2w image will not be included in the BIDS derivatives.", action='store_true')
+
+    return parser
+
+
+
+
+
+def calc_synth_t1w_t2w(t1map_path, t2map_path, pdmap_path, output_folder, subject_name, session_name):
+    
+    print('   Calculating synthetic T1w and T2w images from QALAS maps')
+    t1_tr = 10*1000
+    t1_te = 0.00224*1000
+
+    t2_tr = 10*1000
+    t2_te = 0.1*1000
+
+    temp_t1_img = nib.load(t1map_path)
+    temp_t1_data = temp_t1_img.get_fdata()
+    temp_t2_data = nib.load(t2map_path).get_fdata()
+    temp_pd_data = nib.load(pdmap_path).get_fdata()
+    
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        #t1w = temp_pd_data*(1.0 - np.exp(-t1_tr/temp_t1_data))*np.exp(-t1_te/temp_t2_data)
+                
+        #Using Spin Echo Equation
+        t1w = temp_pd_data*(1.0 - np.exp(-t1_tr/temp_t1_data))*np.exp(-t1_te/temp_t2_data)
+        t2w = temp_pd_data*(1.0 - np.exp(-t2_tr/temp_t1_data))*np.exp(-t2_te/temp_t2_data)
+            
+    if os.path.exists(output_folder) == False:
+        os.makedirs(output_folder)
+        
+    t1w_nifti_img = nib.nifti1.Nifti1Image(t1w, affine = temp_t1_img.affine, header = temp_t1_img.header)
+    t2w_nifti_img = nib.nifti1.Nifti1Image(t2w, affine = temp_t1_img.affine, header = temp_t1_img.header)
+    
+    t1w_name = os.path.join(output_folder, '{}_{}_space-QALAS_desc-synthetic_T1w.nii.gz'.format(subject_name, session_name))
+    t2w_name = os.path.join(output_folder, '{}_{}_space-QALAS_desc-synthetic_T2w.nii.gz'.format(subject_name, session_name))
+
+    nib.save(t1w_nifti_img, t1w_name)
+    nib.save(t2w_nifti_img, t2w_name)
+    
+    return t1w_name, t2w_name
 
 def update_bids_json(json_file, supplemental_info = None):
     '''Function that updates the BIDS json for SyMRI Niftis
@@ -28,7 +96,7 @@ def update_bids_json(json_file, supplemental_info = None):
     '''
     
     fields_to_remove = ['EchoTime', 'RepetitionTime', 'FlipAngle']
-    details = {"ImageDescription" : "This is a synthetic image derived from a QALAS scan distributed by SyMRI.\\nQunatitative T1, T2, and PD values are estimated from the QALAS scan using numerical algorithms provided by SyMRI. B1 values are estimated by SyMRI.",
+    details = {"ImageDescription" : "This is a synthetic image derived from a QALAS scan distributed by SyMRI. Qunatitative T1, T2, and PD values are estimated from the QALAS scan using numerical algorithms provided by SyMRI. B1 maps for the given scan are also estimated, along with synthetic T1w and T2w images.",
                          "ReferenceDOIs" : ["https://doi.org/10.1016/j.mri.2019.08.031"]}
     
     with open(json_file, 'r') as f:
@@ -408,7 +476,13 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
                        container_path,
                        layout_path,
                        global_path,
-                       dcm2bids_config_path):
+                       dcm2bids_config_path,
+                       exclude_t1map = False,
+                       exclude_t2map = False,
+                       exclude_pdmap = False,
+                       exclude_tb1map = False,
+                       exclude_t1w = False,
+                       exclude_t2w = False):
     
     '''Function to unpack qalas from dcm, convert to maps then bids
     
@@ -480,7 +554,7 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
     sys.stdout.write('   dcm_maps_path: {}\n'.format(dcm_maps_path))
     sys.stdout.flush()
     time.sleep(10)
-    if len(glob.glob(os.path.join(dcm_maps_path, '*'))) == 7:
+    if len(glob.glob(os.path.join(dcm_maps_path, '*'))) >= 7:
 
         try:
             dcm2bids_command = dcm2bids_base_command.format(dcm2bids_executable_path=dcm2bids_executable_path, dcm_maps_path=dcm_maps_path, dcm2bids_config_path=dcm2bids_config_path, tmp_bids_dir=tmp_bids_dir, subject_label=subject_label, session_label=session_label)
@@ -499,15 +573,59 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         output_info['symri_conversion_error'] = 0
         output_info['num_niftis_generated'] += len(glob.glob(os.path.join(tmp_bids_dir, 'sub*','ses*','anat','*.nii.gz')))
 
-        #Update the metadata in the json files
-        json_files = glob.glob(os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat', '*json'))
+        #Update the metadata in the MAP json files
+        json_files = glob.glob(os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat', '*map.json'))
         for temp_json_file in json_files:
             update_bids_json(temp_json_file, supplemental_info=supplemental_infos[0])
+
+        #Update the metadata in the Synthetic Weighted json files
+        json_files = glob.glob(os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat', '*w.json'))
+        for temp_json_file in json_files:
+            temp_supplemental_info_dict = supplemental_infos[0].copy()
+            if 'T1w' in temp_json_file.split('/')[-1]:
+                temp_supplemental_info_dict['SyntheticImageDetails'] = {'SyntheticImageType' : 'T1w',
+                                                                        'EchoTime' : 0.01,
+                                                                        'RepetitionTime' : 0.65,
+                                                                        'TimeUnits' : 'seconds'}
+            elif 'T2w' in temp_json_file.split('/')[-1]:
+                temp_supplemental_info_dict['SyntheticImageDetails'] = {'SyntheticImageType' : 'T2w',
+                                                                        'EchoTime' : 0.1,
+                                                                        'RepetitionTime' : 5,
+                                                                        'TimeUnits' : 'seconds'}
+            update_bids_json(temp_json_file, supplemental_info=temp_supplemental_info_dict)
 
         sys.stdout.write('   dcm2bids Command:\n')
         sys.stdout.write('      ' + dcm2bids_command + '\n\n')
         sys.stdout.flush()
 
+        session_anat_folder = os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat')
+        t1map_path = glob.glob(os.path.join(session_anat_folder, '*T1map.nii.gz'))
+        t2map_path = glob.glob(os.path.join(session_anat_folder, '*T2map.nii.gz'))
+        pdmap_path = glob.glob(os.path.join(session_anat_folder, '*PDmap.nii.gz'))
+        tb1map_path = glob.glob(os.path.join(session_anat_folder, '*TB1map.nii.gz'))
+        t1w_path = glob.glob(os.path.join(session_anat_folder, '*T1w.nii.gz'))
+        t2w_path = glob.glob(os.path.join(session_anat_folder, '*T2w.nii.gz'))
+        
+        
+        #Optionally remove any of the T1map, T2map, PDmap, and B1map files
+        if exclude_t1map == True:
+            os.remove(t1map_path[0])
+            os.remove(t1map_path[0].replace('.nii.gz', '.json'))
+        if exclude_t2map == True:
+            os.remove(t2map_path[0])
+            os.remove(t2map_path[0].replace('.nii.gz', '.json'))
+        if exclude_pdmap == True:
+            os.remove(pdmap_path[0])
+            os.remove(pdmap_path[0].replace('.nii.gz', '.json'))
+        if exclude_tb1map == True:
+            os.remove(tb1map_path[0])
+            os.remove(tb1map_path[0].replace('.nii.gz', '.json'))
+        if exclude_t1w == True:
+            os.remove(t1w_path[0])
+            os.remove(t1w_path[0].replace('.nii.gz', '.json'))
+        if exclude_t2w == True:
+            os.remove(t2w_path[0])
+            os.remove(t2w_path[0].replace('.nii.gz', '.json'))
 
 
     else:
@@ -643,10 +761,10 @@ def main():
     
     Parameters
     ----------
-    ucsd_config_path : string
+    dicom_config_path : string
         Path to s3 config file for s3 account that has bucket with dicom
         archives (i.e. .tar.gz files)
-    loris_config_path : string
+    bids_config_path : string
         Path to s3 config file for s3 account that has bucket where BIDS
         derivatives will be stored.
     symri_container_path : string
@@ -664,11 +782,11 @@ def main():
         Path to a non-default dcm2bids config file.
     custom_processing_batch_size : int, default 20
         The number of unique subject/session combos that you want to attempt to process.
-    custom_dicom_bucket_name : string, default 'midb-hbcd-ucsd-main-pr-dicoms'
+    custom_dicom_bucket_name : string
         The name of the bucket to grab dicom archives and json files from. Assumes
         that the each json file/dicom archive is formatted using the format from UCSD
         for the HBCD study.
-    custom_loris_bucket_name : string, default 'midb-hbcd-main-pr'
+    custom_bids_bucket_name : string, default 'midb-hbcd-main-pr'
         The name of the bucket where results will be stored. Results will get stored under
         the following prefix: 'derivatives/ses-<session_label>/symri' within the bucket.
     keep_work_dirs : bool, default False
@@ -677,22 +795,9 @@ def main():
     
     '''
 
-    parser = argparse.ArgumentParser(description="Workflow to Make Relaxometry Maps from QALAS Images Using SyMRI Container.")
-    parser.add_argument("ucsd_config_path", help="Path to ucsd s3 config file.")
-    parser.add_argument("loris_config_path", help="Path to loris s3 config file.")
-    parser.add_argument("symri_container_path", help="Path to SyMRI container.")
-    parser.add_argument("base_directory_for_proc", help="Path where processing will occur and where logs will be stored.")
-    parser.add_argument('--custom_symri_layout', help="Path to a non-default SyMRI layout file.", type=str)
-    parser.add_argument('--custom_global_path', help="Path to a non-default SyMRI global file.", type=str)
-    parser.add_argument('--custom_dcm2bids_config_path', help="Path to a non-default dcm2bids config file.", type=str)
-    parser.add_argument('--custom_processing_batch_size', help="The number of dicom archives that you want to attempt to process.", type=int, default=20)
-    parser.add_argument('--custom_dicom_bucket_name', help="The name of the bucket to grab dicoms from.", type=str, default='hbcd-dicoms-main-study')
-    parser.add_argument('--custom_loris_bucket_name', help="The name of the bucket where results will be stored.", type=str, default='midb-hbcd-main-pr')
-    parser.add_argument('--keep_work_dirs', help="If used, local copies of dicom/niftis generated will be saved. Deletion may be required for subsequent processing in specific cases.", action='store_true')
-    parser.add_argument('--dicom_prefix', help="Prefix to include in front of subject path when searching for dicom archives.", type=str, default='')
-    parser.add_argument('--custom_work_dir', help="If provided, the working directory will be here instead of under base_directory_for_proc (where other local processing info is kept).", type=str)
-    args = parser.parse_args()
 
+    parser = build_parser()
+    args = parser.parse_args()
 
     #Set layout file
     if args.custom_symri_layout:
@@ -713,7 +818,7 @@ def main():
         dcm2bids_config =  os.path.join(Path(inspect.getfile(main)).absolute().parent.resolve(), 'dcm2bids_config.json')
 
     #First grab all JSONS and group them by session
-    files = get_file_names_with_ending(args.custom_dicom_bucket_name, args.ucsd_config_path, ending = '_mripcqc_info.json', prefix = args.dicom_prefix)
+    files = get_file_names_with_ending(args.custom_dicom_bucket_name, args.dicom_config_path, ending = '_mripcqc_info.json', prefix = args.dicom_prefix)
     jsons_dict = {}
     for temp_file in files:
         file_split = '_'.join(temp_file.split('_')[0:3])
@@ -830,7 +935,7 @@ def main():
         jsons_base_dir = os.path.join(session_base_dir, 'qc_jsons') 
         if os.path.exists(jsons_base_dir) == False:
             os.makedirs(jsons_base_dir)
-        downloaded_files = download_s3_files_by_name(args.ucsd_config_path, jsons_base_dir, jsons_dict[temp_session], bucket = args.custom_dicom_bucket_name)
+        downloaded_files = download_s3_files_by_name(args.dicom_config_path, jsons_base_dir, jsons_dict[temp_session], bucket = args.custom_dicom_bucket_name)
         if type(downloaded_files) == type(None):
             raise ValueError('Error: Unable to download jsons for current subject/session: {}. This should probably never happen if scripts are configured correctly.'.format(temp_session))
         downloaded_jsons = glob.glob(os.path.join(jsons_base_dir, '*.json'))
@@ -855,7 +960,7 @@ def main():
             best_qalas_info['jsons_tested'] = sessions_to_evaluate[temp_session]
             if os.path.exists(dicom_base_dir) == False:
                 os.makedirs(dicom_base_dir)
-            file_names = download_s3_files_by_name(args.ucsd_config_path, dicom_base_dir, [best_qalas_info['archive_to_download']], bucket = args.custom_dicom_bucket_name)
+            file_names = download_s3_files_by_name(args.dicom_config_path, dicom_base_dir, [best_qalas_info['archive_to_download']], bucket = args.custom_dicom_bucket_name)
             if type(file_names) == type(None):
                 sys.stdout.write('   Unable to download dicoms for current subject/session: {}. Skipping subject archive and adding them to reprocessing log.\n'.format(temp_session))
                 sys.stdout.flush()
@@ -896,9 +1001,15 @@ def main():
                                             args.symri_container_path,
                                             symri_layout,
                                             symri_global,
-                                            dcm2bids_config)
+                                            dcm2bids_config,
+                                            exclude_t1map = args.exclude_t1map,
+                                            exclude_t2map = args.exclude_t2map,
+                                            exclude_pdmap = args.exclude_pdmap,
+                                            exclude_tb1map = args.exclude_tb1map,
+                                            exclude_t1w = args.exclude_t1w,
+                                            exclude_t2w = args.exclude_t2w)
             
-            if output_info['num_niftis_generated'] < 3:
+            if output_info['num_niftis_generated'] == 0:
                 no_niftis_to_upload.append(temp_session)
                 sys.stdout.write('   Participant didnt have any data to upload... saving info for debugging.')
                 sys.stdout.flush()
@@ -908,9 +1019,9 @@ def main():
             sys.stdout.flush()
             
             #Send the results to s3
-            status = push_to_s3(output_info['bids_path'], output_info['subject_label'], bucket_name = args.custom_loris_bucket_name,
+            status = push_to_s3(output_info['bids_path'], output_info['subject_label'], bucket_name = args.custom_bids_bucket_name,
                                     prefix = os.path.join('derivatives', 'ses-' + output_info['session_label'], 'symri'),
-                                    different_config_path=args.loris_config_path)    
+                                    different_config_path=args.bids_config_path)    
 
             if status == False:
                 raise ValueError('Error: Pushing data to S3 was unsuccessful.')
