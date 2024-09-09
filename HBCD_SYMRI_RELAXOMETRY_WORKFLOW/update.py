@@ -576,7 +576,11 @@ def convert_single_tar(qalas_folders, supplemental_infos, qalas_info_dict,
         #Update the metadata in the MAP json files
         json_files = glob.glob(os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat', '*map.json'))
         for temp_json_file in json_files:
-            update_bids_json(temp_json_file, supplemental_info=supplemental_infos[0])
+            temp_supplemental_info_dict = supplemental_infos[0].copy()
+            if ('T1map' in temp_json_file.split('/')[-1]) or ('T2map' in temp_json_file.split('/')[-1]):
+                temp_supplemental_info_dict['Units'] = "ms"
+
+            update_bids_json(temp_json_file, supplemental_info=temp_supplemental_info_dict)
 
         #Update the metadata in the Synthetic Weighted json files
         json_files = glob.glob(os.path.join(tmp_bids_dir, 'sub-' + subject_label, 'ses-' + session_label, 'anat', '*w.json'))
